@@ -24,8 +24,8 @@ edges = net.getEdges()
 tab_cyclists = []
 
 
-for i in traci.trafficlight.getIDList():
-    traci.trafficlight.setProgram(i, 'off')
+'''for i in traci.trafficlight.getIDList():
+    traci.trafficlight.setProgram(i, 'off')'''
 
 OD_struct = ["237920408", "207728319"]
 edges_struct = [-1, -1]
@@ -54,10 +54,8 @@ while step < 10000:
 
         path = net.getShortestPath(edges[e1], edges[e2], vClass='bicycle')
         if(path[0] != None):
-            traci.route.add(str(id), [e.getID() for e in path[0]])
-            traci.vehicle.add(str(id), str(id), departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
-            traci.vehicle.setSpeed(str(id), traci.vehicle.getMaxSpeed(str(id)))
-            tab_cyclists.append(Cyclist(id, step, traci.vehicle.getMaxSpeed(str(id)), path[0], tab_cyclists, net, edges_struct, traci, sumolib))
+
+            tab_cyclists.append(Cyclist(id, step, path[0], tab_cyclists, net, edges_struct, traci, sumolib))
             id+=1
     traci.simulationStep()
 
