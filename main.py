@@ -1,7 +1,8 @@
 import os, sys
 from random import randint 
 
-from cyclist import Cyclist
+from Cyclist import Cyclist
+from Structure import Structure
 
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -21,46 +22,40 @@ traci.start(sumoCmd)
 net = sumolib.net.readNet('osm.net.xml')
 edges = net.getEdges()
 
-tab_cyclists = []
+dict_cyclists = {}
 
 
 '''for i in traci.trafficlight.getIDList():
     traci.trafficlight.setProgram(i, 'off')'''
 
-OD_struct = ["237920408", "207728319"]
-edges_struct = [-1, -1]
 
+structure = Structure("237920408#0", "207728319#6", edges, net, dict_cyclists, traci)
 
-for e in edges:
-    id = e.getID().split('#')[0]
-    if(id == OD_struct[0]):
-        edges_struct[0] = e
-    if(id == OD_struct[1]):
-        edges_struct[1] = e
 
 tab_diff = []
 
 id=0
 step=0
 while step < 10000:
-    if(len(tab_cyclists)<1):
+    if(len(dict_cyclists)<10):
         e1 = randint(0, len(edges)-1)
         e2 = e1
         while(e2 == e1):
             e2 = randint(0, len(edges)-1)
 
-        e1=0
-        e2=-1
+        '''e1=0
+        e2=-1'''
 
         path = net.getShortestPath(edges[e1], edges[e2], vClass='bicycle')
         if(path[0] != None):
 
-            tab_cyclists.append(Cyclist(id, step, path[0], tab_cyclists, net, edges_struct, traci, sumolib))
+            dict_cyclists[str(id)]= Cyclist(str(id), step, path[0], dict_cyclists, net, structure, traci, sumolib)
             id+=1
     traci.simulationStep()
 
-    for c in tab_cyclists:
-        c.step(step, tab_diff)
+    for i in list(dict_cyclists.keys()):
+        dict_cyclists[i].step(step, tab_diff)
+    structure.step()
 
     step += 1
 

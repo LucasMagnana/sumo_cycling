@@ -1,10 +1,11 @@
 class Cyclist:
 
-    def __init__(self, id, step, path, tab_cyclists, net, edges_struct, traci, sumolib):
+    def __init__(self, id, step, path, dict_cyclists, net, structure, traci, sumolib):
         self.id = id
         self.start_step = step
         self.net=net
-        self.tab_cyclists = tab_cyclists
+        self.dict_cyclists = dict_cyclists
+        self.structure = structure
 
         self.module_sumolib = sumolib
         self.module_traci = traci
@@ -15,46 +16,47 @@ class Cyclist:
 
         self.original_path = path
 
-        self.path_to_struct = net.getShortestPath(self.original_path[0], edges_struct[0], vClass='bicycle')[0]
-        self.path_from_struct = net.getShortestPath(edges_struct[1], self.original_path[-1], vClass='bicycle')[0]
+        self.path_to_struct = net.getShortestPath(self.original_path[0], self.structure.start_edge, vClass='bicycle')[0]
+        self.path_from_struct = net.getShortestPath(self.structure.end_edge, self.original_path[-1], vClass='bicycle')[0]
 
         self.actual_path = self.original_path
 
 
         self.finish_step = None
+        self.struct_passed = False
 
 
-    def step(self, step, tab_diff):    
+    def step(self, step, tab_diff):
         if(str(self.id) not in self.module_traci.vehicle.getIDList()):
-            self.tab_cyclists.remove(self)
-            '''print("estimated waiting time:", self.estimated_waiting_time, "waiting time:", self.waiting_time, "diff:", self.estimated_waiting_time-self.waiting_time)
-            print("estimated distance:", self.estimated_distance, "distance:", self.distance_travelled, "diff:", self.estimated_distance-self.distance_travelled)
-            print("estimated travel time :", self.estimated_travel_time, "travel time:", step-self.start_step, "diff:", self.estimated_travel_time-(step-self.start_step))
-            print("================================================")'''
+            del self.dict_cyclists[self.id]
             if(self.finish_step): #WHY USEFUL ????
-                tab_diff.append(((step-self.start_step)-self.estimated_travel_time)/self.estimated_travel_time)
+                tab_diff.append(((step-self.start_step)-self.estimated_travel_time))
+            return
+
+        if(self.actual_path == self.original_path and not self.struct_passed):
+            self.go_to_struct()
+
+        if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(str(self.id))==self.structure.end_edge.getID()):
+            self.actual_path = self.original_path
+            self.module_traci.vehicle.changeTarget(str(self.id), self.original_path[-1].getID())
+            self.struct_passed = True
+
+
+        if(self.module_traci.vehicle.getRoadID(str(self.id))==self.original_path[-1].getID()):
+            self.module_traci.vehicle.remove(str(self.id))
         elif(self.finish_step == None):
             self.finish_step = self.calculate_ETA()
         else:
             self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(str(self.id))
             self.distance_travelled = self.module_traci.vehicle.getDistance(str(self.id))
-            self.calculate_ETA()
 
     def calculate_ETA(self):
         waiting_time = self.calculate_estimated_waiting_time()
         #self.estimated_distance = self.module_sumolib.route.getLength(self.net, self.module_sumolib.route.addInternal(self.net, self.actual_path))
-        self.actual_path = self.path_to_struct
-        self.module_traci.vehicle.changeTarget(str(self.id), self.actual_path[-1].getID())
-        self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(str(self.id), self.actual_path[-1].getID(), self.actual_path[-1].getLength())
-        print(self.estimated_distance)
-        self.actual_path = self.original_path
-        self.module_traci.vehicle.changeTarget(str(self.id), self.actual_path[-1].getID())
-        self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(str(self.id), self.actual_path[-1].getID(), self.actual_path[-1].getLength())
-        print(self.estimated_distance)
-        print("=======================================")
+        self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(str(self.id), self.actual_path[-1].getID(), 0)
         travel_time = self.estimated_distance/self.max_speed
         self.estimated_travel_time=travel_time+waiting_time
-        self.estimated_travel_time+=self.estimated_travel_time*0.2
+        self.estimated_travel_time+=self.estimated_travel_time*-0.03
         return self.start_step+self.estimated_travel_time
 
     def calculate_estimated_waiting_time(self):
@@ -83,5 +85,18 @@ class Cyclist:
         else:
             estimated_wait_tls = red_duration/total_duration*red_duration
         self.estimated_waiting_time = estimated_wait_tls
-        return 0 #estimated_wait_tls
+        return estimated_wait_tls
 
+
+    def go_to_struct(self):
+        self.actual_path = self.path_to_struct
+        self.module_traci.vehicle.changeTarget(str(self.id), self.structure.start_edge.getID())
+        self.module_traci.vehicle.setStop(str(self.id), self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1)
+
+    def cross_struct(self):
+        self.actual_path = self.structure.path
+        self.module_traci.vehicle.changeTarget(str(self.id), self.structure.end_edge.getID())
+        if(self.module_traci.vehicle.isStopped(str(self.id))):
+            self.module_traci.vehicle.resume(str(self.id))
+        else:
+            self.module_traci.vehicle.setStop(str(self.id), self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
