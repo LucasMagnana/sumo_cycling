@@ -24,6 +24,7 @@ class Cyclist:
 
         self.finish_step = None
         self.struct_passed = False
+        self.crossing_struct = False
 
 
     def step(self, step, tab_diff):
@@ -39,7 +40,9 @@ class Cyclist:
         if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(str(self.id))==self.structure.end_edge.getID()):
             self.actual_path = self.original_path
             self.module_traci.vehicle.changeTarget(str(self.id), self.original_path[-1].getID())
+            self.crossing_struct = False
             self.struct_passed = True
+            self.structure.id_cyclists_crossing_struct.remove(self.id)
 
 
         if(self.module_traci.vehicle.getRoadID(str(self.id))==self.original_path[-1].getID()):
@@ -69,7 +72,6 @@ class Cyclist:
                 num_tls+=1                
                 tl_concerned = []
                 i=0
-                #print("=====================================")
                 for l in self.module_traci.trafficlight.getControlledLinks(tls.getID()):                
                     if(e.getID() in l[0][0]):
                         tl_concerned.append(i)
@@ -94,6 +96,7 @@ class Cyclist:
         self.module_traci.vehicle.setStop(str(self.id), self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1)
 
     def cross_struct(self):
+        self.crossing_struct = True
         self.actual_path = self.structure.path
         self.module_traci.vehicle.changeTarget(str(self.id), self.structure.end_edge.getID())
         if(self.module_traci.vehicle.isStopped(str(self.id))):
