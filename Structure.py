@@ -1,5 +1,5 @@
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci):
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, min_group_size=10):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -14,10 +14,7 @@ class Structure:
         self.module_traci = traci
 
         self.id_cyclists_crossing_struct = []
-
-
-        self.dict_original_phases = {}
-        self.dict_modified_logics = {}
+        self.id_cyclists_waiting = []
 
         for e in self.path:
             tls = e.getTLS()
@@ -35,22 +32,37 @@ class Structure:
                         str_phase_transition+='G'
                         str_inverse_phase+='y'
 
-
-                self.dict_original_phases[tls.getID()] = self.module_traci.trafficlight.getAllProgramLogics(tls.getID())[0].phases
                 self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
                     phases=[self.module_traci.trafficlight.Phase(duration=99999, state=str_phase, minDur=9999, maxDur=9999), \
                         self.module_traci.trafficlight.Phase(duration=3, state=str_phase_transition, minDur=3, maxDur=3),
                         self.module_traci.trafficlight.Phase(duration=3, state=str_inverse_phase, minDur=3, maxDur=3)]))
                 self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+        
+        self.min_group_size = min_group_size
+        self.activated = False
 
 
     def step(self):
-        if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=6):
+        if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=self.min_group_size):
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-                self.id_cyclists_crossing_struct.append(i)
-                self.dict_cyclists[i].cross_struct()
+                if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                    self.id_cyclists_waiting.append(i)
+                    #print(i, "waiting")
 
-        if(len(self.id_cyclists_crossing_struct)>0):
+        if(len(self.id_cyclists_waiting)>=self.min_group_size and not self.activated):
+            self.activated = True
+            for i in self.id_cyclists_waiting:
+                try:
+                    self.dict_cyclists[i].cross_struct()
+                except KeyError:
+                    self.module_traci.vehicle.remove(i)
+                    print(i, "bugged (disapperead from id list)")
+                    continue
+                #print(i, "crossing")
+                self.id_cyclists_crossing_struct.append(i)
+            self.id_cyclists_waiting = []
+
+        if(self.activated):
             for e in self.path:
                 tls = e.getTLS()
                 if(tls):
@@ -60,5 +72,10 @@ class Structure:
                     else:
                         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+
+        if(len(self.id_cyclists_crossing_struct)==0):
+            self.activated = False
+
+
                                 
 
