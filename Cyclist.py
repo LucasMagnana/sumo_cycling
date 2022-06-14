@@ -34,10 +34,12 @@ class Cyclist:
         self.path_to_struct = net.getShortestPath(self.original_path[0], self.structure.start_edge, vClass='bicycle')[0]
         self.path_from_struct = net.getShortestPath(self.structure.end_edge, self.original_path[-1], vClass='bicycle')[0]
 
+
         self.actual_path = self.original_path
 
 
         self.finish_step = None
+        self.highlited = False
 
 
 
@@ -51,8 +53,9 @@ class Cyclist:
             return
 
 
-        if(self.struct_candidate):
+        if(self.struct_candidate and not self.highlited):
             self.module_traci.vehicle.highlight(self.id)
+            self.highlited = True
         
         if(self.struct_candidate and self.actual_path == self.original_path):
             path_to_struct_found = self.go_to_struct()
@@ -64,15 +67,7 @@ class Cyclist:
             print("bite")'''
 
         if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(self.id)==self.structure.end_edge.getID()):
-            self.actual_path = self.original_path
-            try:
-                self.module_traci.vehicle.changeTarget(self.id, self.original_path[-1].getID())
-            except self.module_traci.exceptions.TraCIException:
-                print(self.id, self.module_traci.vehicle.getRoadID(self.id), self.original_path[-1].getID(), self.path_from_struct)
-                raise self.module_traci.exceptions.TraCIException(0)
-
-            self.struct_candidate = False
-            self.structure.id_cyclists_crossing_struct.remove(self.id)
+            self.exit_struct()
 
         if(self.finish_step == None):
             self.finish_step = self.calculate_ETA()
@@ -150,3 +145,11 @@ class Cyclist:
             print(self.id, "removed from dict while still in simu")
         except self.module_traci.exceptions.TraCIException:
             return
+
+    def exit_struct(self):
+        self.actual_path = self.original_path
+        self.module_traci.vehicle.setRoute(self.id, [e.getID() for e in self.path_from_struct])
+        self.struct_candidate = False
+        self.structure.id_cyclists_crossing_struct.remove(self.id)
+            
+                
