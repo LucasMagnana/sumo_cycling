@@ -1,5 +1,5 @@
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, min_group_size=10):
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, min_group_size=5):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -47,6 +47,7 @@ class Structure:
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
                 if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                     self.id_cyclists_waiting.append(i)
+
                     #print(i, "waiting")
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size and not self.activated):

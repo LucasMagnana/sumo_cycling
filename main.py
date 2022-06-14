@@ -30,7 +30,7 @@ dict_cyclists = {}
     traci.trafficlight.setProgram(i, 'off')'''
 
 
-structure = Structure("237920408#0", "207728319#6", edges, net, dict_cyclists, traci)
+structure = Structure("237920408#0", "207728319#9", edges, net, dict_cyclists, traci, min_group_size=10)
 
 
 tab_diff = []
@@ -38,7 +38,7 @@ tab_diff = []
 id=0
 step=0
 
-save = False
+save = True
 load = False
 
 tab_od = []
@@ -66,7 +66,7 @@ while step <= 10000:
 
 
         if(path[0] != None and len(path[0])>2 and edges[e1] not in structure.path and edges[e2] not in structure.path):
-            dict_cyclists[str(id)]= Cyclist(str(id), step, path[0], dict_cyclists, net, structure, traci, sumolib)
+            dict_cyclists[str(id)]= Cyclist(str(id), step, path[0], dict_cyclists, net, structure, traci, sumolib, struct_candidate=id%2==0)
             id+=1
     traci.simulationStep()
 
@@ -76,6 +76,7 @@ while step <= 10000:
             dict_cyclists[i].step(step, tab_diff)
         except traci.exceptions.TraCIException:
             if(save):
+                print("Saving....")
                 with open('OD.tab', 'wb') as outfile:
                     pickle.dump(tab_od, outfile)
             raise KeyError

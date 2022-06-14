@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_cyclists, net, structure, traci, sumolib):
+    def __init__(self, id, step, path, dict_cyclists, net, structure, traci, sumolib, struct_candidate=True):
         self.id = id
         self.start_step = step
         self.net=net
@@ -12,9 +12,22 @@ class Cyclist:
         self.module_sumolib = sumolib
         self.module_traci = traci
 
-        self.module_traci.route.add(str(id)+"_sp", [e.getID() for e in path])
-        self.module_traci.vehicle.add(str(id), str(id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
-        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(id))
+        self.struct_candidate = struct_candidate
+
+        '''if(self.id == "4"):
+            self.struct_candidate = False
+            for e in net.getEdges():
+                id = e.getID()
+                if(id == "157655114#2"):
+                    start_edge = e
+                if(id == "779291540#0"):
+                    end_edge  = e
+            path = net.getShortestPath(start_edge, end_edge, vClass='bicycle')[0]'''
+
+
+        self.module_traci.route.add(str(self.id)+"_sp", [e.getID() for e in path])
+        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
+        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
 
         self.original_path = path
 
@@ -25,10 +38,8 @@ class Cyclist:
 
 
         self.finish_step = None
-        self.struct_passed = False
-        self.crossing_struct = False
 
-        self.struct_candidate = True
+
 
 
     def step(self, step, tab_diff):
@@ -39,17 +50,28 @@ class Cyclist:
                 tab_diff.append(((step-self.start_step)-self.estimated_travel_time))
             return
 
+
+        if(self.struct_candidate):
+            self.module_traci.vehicle.highlight(self.id)
         
-        if(self.struct_candidate and self.actual_path == self.original_path and not self.struct_passed):
+        if(self.struct_candidate and self.actual_path == self.original_path):
             path_to_struct_found = self.go_to_struct()
             if(not path_to_struct_found):
                 return
 
+        '''if(not self.struct_candidate and self.module_traci.vehicle.getRoadID(self.id) == self.structure.start_edge.getID() and self.module_traci.vehicle.getSpeed(self.id)==0 and len(self.structure.id_cyclists_waiting)>0):
+            self.module_traci.vehicle.changeSublane(self.id, 1)
+            print("bite")'''
+
         if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(self.id)==self.structure.end_edge.getID()):
             self.actual_path = self.original_path
-            self.module_traci.vehicle.changeTarget(self.id, self.original_path[-1].getID())
-            self.crossing_struct = False
-            self.struct_passed = True
+            try:
+                self.module_traci.vehicle.changeTarget(self.id, self.original_path[-1].getID())
+            except self.module_traci.exceptions.TraCIException:
+                print(self.id, self.module_traci.vehicle.getRoadID(self.id), self.original_path[-1].getID(), self.path_from_struct)
+                raise self.module_traci.exceptions.TraCIException(0)
+
+            self.struct_candidate = False
             self.structure.id_cyclists_crossing_struct.remove(self.id)
 
         if(self.finish_step == None):
@@ -107,13 +129,13 @@ class Cyclist:
             return False
 
     def cross_struct(self):
-        self.crossing_struct = True
         self.actual_path = self.structure.path
         self.module_traci.vehicle.changeTarget(self.id, self.structure.end_edge.getID())
         if(self.module_traci.vehicle.isStopped(self.id)):
             self.module_traci.vehicle.resume(self.id)
         if(self.module_traci.vehicle.getNextStops(self.id)):
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
+        self.module_traci.vehicle.changeLane(self.id, 0, self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)/self.max_speed)
 
 
     def remove(self):
@@ -127,4 +149,4 @@ class Cyclist:
             self.module_traci.vehicle.remove(self.id)
             print(self.id, "removed from dict while still in simu")
         except self.module_traci.exceptions.TraCIException:
-            pass
+            return
