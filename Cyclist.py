@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_cyclists, net, structure, traci, sumolib, struct_candidate=True):
+    def __init__(self, id, step, path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=True):
         self.id = id
         self.start_step = step
         self.net=net
@@ -27,6 +27,8 @@ class Cyclist:
 
         self.module_traci.route.add(str(self.id)+"_sp", [e.getID() for e in path])
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
+        
+        self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
 
         self.original_path = path
@@ -38,51 +40,63 @@ class Cyclist:
         self.actual_path = self.original_path
 
 
-        self.finish_step = None
+        self.estimated_finish_step = None
         self.highlited = False
 
+        self.nb_step_disappeared = 0
+        self.max_step_disappeared = 5
+
+        self.estimated_finish_step = self.calculate_ETA(self.start_step)
 
 
 
-    def step(self, step, tab_diff):
 
-        if(self.id not in self.module_traci.vehicle.getIDList()):
-            self.remove()
-            if(self.finish_step):
-                tab_diff.append(((step-self.start_step)-self.estimated_travel_time))
-            return
+    def step(self, step, tab_diff, tab_ratio):
 
+        if(self.id in self.module_traci.vehicle.getIDList()):
+            self.nb_step_disappeared = 0
 
-        if(self.struct_candidate and not self.highlited):
-            self.module_traci.vehicle.highlight(self.id)
-            self.highlited = True
-        
-        if(self.struct_candidate and self.actual_path == self.original_path):
-            path_to_struct_found = self.go_to_struct()
-            if(not path_to_struct_found):
+            if(not self.struct_candidate and not self.highlited):
+                self.module_traci.vehicle.highlight(self.id)
+                self.highlited = True
+            
+            if(self.struct_candidate and self.actual_path == self.original_path):
+                path_to_struct_found = self.go_to_struct()
+                if(not path_to_struct_found):
+                    return
+
+            if(self.module_traci.vehicle.getRoadID(self.id)==self.structure.start_edge.getID()):
+                if(self.actual_path == self.original_path and self.module_traci.vehicle.getLaneIndex(self.id) == 0):
+                    self.module_traci.vehicle.changeLane(self.id, 1, self.structure.start_edge.getLength()/self.max_speed)
+                elif(self.actual_path == self.path_to_struct and self.module_traci.vehicle.getLaneIndex(self.id) == 1):
+                    self.module_traci.vehicle.changeLane(self.id, 0, self.structure.start_edge.getLength()/self.max_speed)
+
+            if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(self.id)==self.structure.end_edge.getID()):
+                self.exit_struct()
+
+            self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
+            self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
+        else:
+            if(self.nb_step_disappeared < self.max_step_disappeared):
+                self.nb_step_disappeared+=1
+            else :
+                self.remove()
+                if(self.estimated_finish_step):
+                    tab_ratio.append(((step-self.start_step)-self.estimated_travel_time)/self.estimated_travel_time)
+                    tab_diff.append((step-self.start_step)-self.estimated_travel_time)
                 return
 
-        '''if(not self.struct_candidate and self.module_traci.vehicle.getRoadID(self.id) == self.structure.start_edge.getID() and self.module_traci.vehicle.getSpeed(self.id)==0 and len(self.structure.id_cyclists_waiting)>0):
-            self.module_traci.vehicle.changeSublane(self.id, 1)
-            print("bite")'''
+    def calculate_ETA(self, step, final_edge=None):
+        if(final_edge != None):
+            self.module_traci.vehicle.changeTarget(self.id, final_edge.getID())
 
-        if(self.actual_path == self.structure.path and self.module_traci.vehicle.getRoadID(self.id)==self.structure.end_edge.getID()):
-            self.exit_struct()
-
-        if(self.finish_step == None):
-            self.finish_step = self.calculate_ETA()
-
-        self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
-        self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
-
-    def calculate_ETA(self):
         waiting_time = self.calculate_estimated_waiting_time()
-        #self.estimated_distance = self.module_sumolib.route.getLength(self.net, self.module_sumolib.route.addInternal(self.net, self.actual_path))
-        self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)
+        self.estimated_distance = self.module_sumolib.route.getLength(self.net, self.actual_path)
+        #self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)
         travel_time = self.estimated_distance/self.max_speed
         self.estimated_travel_time=travel_time+waiting_time
-        self.estimated_travel_time+=self.estimated_travel_time*-0.03
-        return self.start_step+self.estimated_travel_time
+        self.estimated_travel_time+=self.estimated_travel_time*0.2
+        return step+self.estimated_travel_time
 
     def calculate_estimated_waiting_time(self):
         red_duration = 0
@@ -151,5 +165,10 @@ class Cyclist:
         self.module_traci.vehicle.setRoute(self.id, [e.getID() for e in self.path_from_struct])
         self.struct_candidate = False
         self.structure.id_cyclists_crossing_struct.remove(self.id)
+        self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
+
+    def set_max_speed(self, max_speed):
+        self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
+
             
                 

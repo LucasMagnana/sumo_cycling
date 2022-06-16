@@ -52,6 +52,7 @@ class Structure:
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size and not self.activated):
             self.activated = True
+            min_max_speed = 100
             for i in self.id_cyclists_waiting:
                 try:
                     self.dict_cyclists[i].cross_struct()
@@ -59,9 +60,14 @@ class Structure:
                     self.module_traci.vehicle.remove(i)
                     print(i, "bugged (disapperead from id list)")
                     continue
+                if(self.dict_cyclists[i].max_speed < min_max_speed):
+                    min_max_speed = self.dict_cyclists[i].max_speed
                 #print(i, "crossing")
                 self.id_cyclists_crossing_struct.append(i)
             self.id_cyclists_waiting = []
+
+            for i in self.id_cyclists_crossing_struct:
+                self.dict_cyclists[i].set_max_speed(min_max_speed)
 
         if(self.activated):
             for e in self.path:
@@ -76,6 +82,7 @@ class Structure:
 
         if(len(self.id_cyclists_crossing_struct)==0):
             self.activated = False
+
 
 
                                 
