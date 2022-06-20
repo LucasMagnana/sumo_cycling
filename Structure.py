@@ -1,5 +1,7 @@
+import threading
+
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, min_group_size=5):
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, sumolib, min_group_size=5):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -8,6 +10,7 @@ class Structure:
                 self.end_edge  = e
 
         self.path = net.getShortestPath(self.start_edge, self.end_edge, vClass='bicycle')[0]
+        self.path_length = sumolib.route.getLength(net, self.path)
 
         self.dict_cyclists = dict_cyclists
 
@@ -41,8 +44,18 @@ class Structure:
         self.min_group_size = min_group_size
         self.activated = False
 
+        self.net = net
 
-    def step(self):
+
+    def step(self, step):
+        if(step%15==14):
+            #self.check_for_candidates(step)
+            t = threading.Thread(target=self.check_for_candidates, args=(step,))
+            t.start()
+            #t.join()
+
+
+
         if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=self.min_group_size):
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
                 if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
@@ -82,6 +95,17 @@ class Structure:
 
         if(len(self.id_cyclists_crossing_struct)==0):
             self.activated = False
+
+    def check_for_candidates(self, step):
+        for i in self.dict_cyclists:
+            if(self.dict_cyclists[i].nb_step_disappeared == 0):
+                if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
+                    step_entering_struct = self.dict_cyclists[i].calculate_ETA(step,\
+                        self.net.getShortestPath(self.net.getEdge(self.dict_cyclists[i].actual_edge_id), self.start_edge, vClass='bicycle')[0])
+                    step_exiting_struct = step_entering_struct+self.path_length/self.dict_cyclists[i].max_speed
+                    step_arriving_by_crossing_struct = self.dict_cyclists[i].calculate_ETA(step_exiting_struct, self.dict_cyclists[i].path_from_struct)
+                    print(step_arriving_by_crossing_struct, self.dict_cyclists[i].estimated_finish_step)
+        return
 
 
 

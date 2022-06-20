@@ -48,15 +48,18 @@ class Cyclist:
 
         self.estimated_finish_step = self.calculate_ETA(self.start_step)
 
+        self.actual_edge_id = self.actual_path[0].getID()
+
 
 
 
     def step(self, step, tab_diff, tab_ratio):
 
         if(self.id in self.module_traci.vehicle.getIDList()):
+            self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
             self.nb_step_disappeared = 0
 
-            if(not self.struct_candidate and not self.highlited):
+            if(self.struct_candidate and not self.highlited):
                 self.module_traci.vehicle.highlight(self.id)
                 self.highlited = True
             
@@ -86,23 +89,23 @@ class Cyclist:
                     tab_diff.append((step-self.start_step)-self.estimated_travel_time)
                 return
 
-    def calculate_ETA(self, step, final_edge=None):
-        if(final_edge != None):
-            self.module_traci.vehicle.changeTarget(self.id, final_edge.getID())
+    def calculate_ETA(self, step, path=None):
+        if(path == None):
+            path = self.actual_path
 
-        waiting_time = self.calculate_estimated_waiting_time()
-        self.estimated_distance = self.module_sumolib.route.getLength(self.net, self.actual_path)
+        waiting_time = self.calculate_estimated_waiting_time(path)
+        self.estimated_distance = self.module_sumolib.route.getLength(self.net, path)
         #self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)
         travel_time = self.estimated_distance/self.max_speed
         self.estimated_travel_time=travel_time+waiting_time
         self.estimated_travel_time+=self.estimated_travel_time*0.2
         return step+self.estimated_travel_time
 
-    def calculate_estimated_waiting_time(self):
+    def calculate_estimated_waiting_time(self, path):
         red_duration = 0
         total_duration = 0
         num_tls = 0
-        for e in self.actual_path:
+        for e in path:
             tls = e.getTLS()
             if(tls):
                 num_tls+=1                

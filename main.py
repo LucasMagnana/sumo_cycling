@@ -32,7 +32,7 @@ dict_cyclists = {}
     traci.trafficlight.setProgram(i, 'off')'''
 
 
-structure = Structure("237920408#0", "207728319#9", edges, net, dict_cyclists, traci, min_group_size=10)
+structure = Structure("237920408#0", "207728319#9", edges, net, dict_cyclists, traci, sumolib, min_group_size=10)
 
 
 tab_diff = []
@@ -58,7 +58,7 @@ traci.junction.subscribeContext(junctionID, tc.CMD_GET_VEHICLE_VARIABLE, 1000000
 stepLength = traci.simulation.getDeltaT()'''
 
 
-while step <= 10000:
+while step <= 1000:
     if(len(dict_cyclists)<100):
 
         if(not load):
@@ -77,7 +77,7 @@ while step <= 10000:
 
         if(path[0] != None and len(path[0])>2 and edges[e1] not in structure.path and edges[e2] not in structure.path):
             max_speed = 5.5 #np.random.normal(5.5, 2)
-            dict_cyclists[str(id)]= Cyclist(str(id), step, path[0], dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=id%2==0)
+            dict_cyclists[str(id)]= Cyclist(str(id), step, path[0], dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=False)#id%2==0)
             id+=1
 
 
@@ -98,7 +98,7 @@ while step <= 10000:
                 with open('OD.tab', 'wb') as outfile:
                     pickle.dump(tab_od, outfile)
             raise KeyError
-        structure.step()
+        structure.step(step)
 
 
     step += 1
