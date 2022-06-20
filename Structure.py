@@ -1,7 +1,7 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, sumolib, min_group_size=5):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=5):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -9,8 +9,10 @@ class Structure:
             if(id == end_edge):
                 self.end_edge  = e
 
-        self.path = net.getShortestPath(self.start_edge, self.end_edge, vClass='bicycle')[0]
-        self.path_length = sumolib.route.getLength(net, self.path)
+        self.dict_shortest_path = dict_shortest_path
+
+        self.path = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]["path"]
+        self.path_length = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]["length"]
 
         self.dict_cyclists = dict_cyclists
 
@@ -20,13 +22,13 @@ class Structure:
         self.id_cyclists_waiting = []
 
         for e in self.path:
-            tls = e.getTLS()
+            tls = net.getEdge(e).getTLS()
             if(tls):
                 str_phase = ""
                 str_phase_transition = ""
                 str_inverse_phase = ""
                 for l in self.module_traci.trafficlight.getControlledLinks(tls.getID()):                
-                    if(e.getID() in l[0][0]):
+                    if(e in l[0][0]):
                         str_phase+= 'G'
                         str_phase_transition+='y'
                         str_inverse_phase+='r'
@@ -49,10 +51,7 @@ class Structure:
 
     def step(self, step):
         if(step%15==14):
-            #self.check_for_candidates(step)
-            t = threading.Thread(target=self.check_for_candidates, args=(step,))
-            t.start()
-            #t.join()
+            self.check_for_candidates(step)
 
 
 
@@ -100,11 +99,14 @@ class Structure:
         for i in self.dict_cyclists:
             if(self.dict_cyclists[i].nb_step_disappeared == 0):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
-                    step_entering_struct = self.dict_cyclists[i].calculate_ETA(step,\
-                        self.net.getShortestPath(self.net.getEdge(self.dict_cyclists[i].actual_edge_id), self.start_edge, vClass='bicycle')[0])
-                    step_exiting_struct = step_entering_struct+self.path_length/self.dict_cyclists[i].max_speed
-                    step_arriving_by_crossing_struct = self.dict_cyclists[i].calculate_ETA(step_exiting_struct, self.dict_cyclists[i].path_from_struct)
-                    print(step_arriving_by_crossing_struct, self.dict_cyclists[i].estimated_finish_step)
+                    key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
+                    if(key_path_to_struct in self.dict_shortest_path):
+                        step_entering_struct = step+self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
+                        self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
+                        step_exiting_struct = step_entering_struct+self.path_length/self.dict_cyclists[i].max_speed
+                        step_arriving_by_crossing_struct = step_exiting_struct+self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
+                        self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
+                        #print(step_arriving_by_crossing_struct, self.dict_cyclists[i].estimated_finish_step)
         return
 
 

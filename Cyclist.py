@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=True):
+    def __init__(self, id, step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=True):
         self.id = id
         self.start_step = step
         self.net=net
@@ -14,18 +14,7 @@ class Cyclist:
 
         self.struct_candidate = struct_candidate
 
-        '''if(self.id == "4"):
-            self.struct_candidate = False
-            for e in net.getEdges():
-                id = e.getID()
-                if(id == "157655114#2"):
-                    start_edge = e
-                if(id == "779291540#0"):
-                    end_edge  = e
-            path = net.getShortestPath(start_edge, end_edge, vClass='bicycle')[0]'''
-
-
-        self.module_traci.route.add(str(self.id)+"_sp", [e.getID() for e in path])
+        self.module_traci.route.add(str(self.id)+"_sp", path["path"])
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
         
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
@@ -33,22 +22,25 @@ class Cyclist:
 
         self.original_path = path
 
-        self.path_to_struct = net.getShortestPath(self.original_path[0], self.structure.start_edge, vClass='bicycle')[0]
-        self.path_from_struct = net.getShortestPath(self.structure.end_edge, self.original_path[-1], vClass='bicycle')[0]
+        self.dict_shortest_path = dict_shortest_path 
+
+        self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
+        self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
 
 
         self.actual_path = self.original_path
 
 
-        self.estimated_finish_step = None
         self.highlited = False
 
         self.nb_step_disappeared = 0
-        self.max_step_disappeared = 5
+        self.max_step_disappeared = 0
 
-        self.estimated_finish_step = self.calculate_ETA(self.start_step)
+        self.estimated_travel_time=path["length"]/self.max_speed+path["estimated_waiting_time"]
+        self.estimated_travel_time+=self.estimated_travel_time*0.2
+        self.estimated_finish_step = step+self.estimated_travel_time
 
-        self.actual_edge_id = self.actual_path[0].getID()
+        self.actual_edge_id = self.actual_path["path"][0]
 
 
 
@@ -101,33 +93,6 @@ class Cyclist:
         self.estimated_travel_time+=self.estimated_travel_time*0.2
         return step+self.estimated_travel_time
 
-    def calculate_estimated_waiting_time(self, path):
-        red_duration = 0
-        total_duration = 0
-        num_tls = 0
-        for e in path:
-            tls = e.getTLS()
-            if(tls):
-                num_tls+=1                
-                tl_concerned = []
-                i=0
-                for l in self.module_traci.trafficlight.getControlledLinks(tls.getID()):                
-                    if(e.getID() in l[0][0]):
-                        tl_concerned.append(i)
-                    i+=1
-
-                for p in self.module_traci.trafficlight.getAllProgramLogics(tls.getID())[0].getPhases():
-                    #print(p, tl_concerned)
-                    total_duration += p.minDur
-                    if('r' in p.state[tl_concerned[0]:tl_concerned[-1]]):
-                        red_duration += p.minDur
-        if(total_duration == 0):
-            estimated_wait_tls = 0
-        else:
-            estimated_wait_tls = red_duration/total_duration*red_duration
-        self.estimated_waiting_time = estimated_wait_tls
-        return estimated_wait_tls
-
 
     def go_to_struct(self):
         self.actual_path = self.path_to_struct
@@ -147,7 +112,7 @@ class Cyclist:
             self.module_traci.vehicle.resume(self.id)
         if(self.module_traci.vehicle.getNextStops(self.id)):
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
-        self.module_traci.vehicle.changeLane(self.id, 0, self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)/self.max_speed)
+        self.module_traci.vehicle.changeLane(self.id, 0, self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path["path"][-1], 0)/self.max_speed)
 
 
     def remove(self):
