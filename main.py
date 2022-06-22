@@ -157,5 +157,5 @@ while step <= 10000:
 
     step += 1
 
-print(sum(tab_diff)/len(tab_diff), sum(tab_ratio)/len(tab_ratio))
+print("temp diff:", sum(tab_diff)/len(tab_diff), "ratio:", sum(tab_ratio)/len(tab_ratio), "data number:", len(tab_diff), "last id:", id, )
 traci.close()
