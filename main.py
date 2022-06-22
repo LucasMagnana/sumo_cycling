@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 import osmnx as ox
 import shelve
+import copy
 
 from Cyclist import Cyclist
 from Structure import Structure
@@ -100,8 +101,10 @@ else:
 
 structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=10)
 
+last_dict_cyclists_keys = None
 
-while step <= 1000:
+
+while step <= 10000:
     if(len(dict_cyclists)<100):
 
         if(not load):
@@ -126,24 +129,30 @@ while step <= 1000:
             tab_od.append([e1, e2])
 
 
-        if(path != None and len(path)>2 and edges[e1].getID() not in structure.path and edges[e2].getID() not in structure.path):
-            max_speed = 5.5 #np.random.normal(5.5, 2)
-            dict_cyclists[str(id)]= Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=False)#id%2==0)
+        if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+            max_speed = np.random.normal(15, 3)
+            c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib,struct_candidate=False)#id%2==0)
+            if(c.alive):
+                dict_cyclists[str(id)]=c
             id+=1
 
 
-    traci.simulationStep()   
+    traci.simulationStep()
 
-    for i in list(dict_cyclists.keys()):
+    if(last_dict_cyclists_keys == None):
+        last_dict_cyclists_keys = copy.deepcopy(list(dict_cyclists.keys()))   
+
+    for i in last_dict_cyclists_keys:
         try:
             dict_cyclists[i].step(step, tab_diff, tab_ratio)
-        except traci.exceptions.TraCIException:
-            if(save):
-                print("Saving....")
-                with open('OD.tab', 'wb') as outfile:
-                    pickle.dump(tab_od, outfile)
-            raise KeyError
-        structure.step(step)
+        except KeyError:
+            traci.vehicle.remove(self.id)
+            print(i, "removed from dict while still in simu (main)")
+
+    structure.step(step)
+
+    last_dict_cyclists_keys = copy.deepcopy(list(dict_cyclists.keys()))   
+        
 
 
     step += 1

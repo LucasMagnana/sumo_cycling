@@ -11,8 +11,7 @@ class Structure:
 
         self.dict_shortest_path = dict_shortest_path
 
-        self.path = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]["path"]
-        self.path_length = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]["length"]
+        self.path = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]
 
         self.dict_cyclists = dict_cyclists
 
@@ -21,7 +20,7 @@ class Structure:
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
 
-        for e in self.path:
+        for e in self.path["path"]:
             tls = net.getEdge(e).getTLS()
             if(tls):
                 str_phase = ""
@@ -57,8 +56,14 @@ class Structure:
 
         if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=self.min_group_size):
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-                if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
-                    self.id_cyclists_waiting.append(i)
+                if(i in self.dict_cyclists):
+                    if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
+                    and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                        self.id_cyclists_waiting.append(i)
+                else:
+                    self.module_traci.vehicle.remove(i)
+                    print(i, "removed from dict while still in simu (struct)")
+
 
                     #print(i, "waiting")
 
@@ -82,10 +87,10 @@ class Structure:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
 
         if(self.activated):
-            for e in self.path:
-                tls = e.getTLS()
+            for e in self.path["path"]:
+                tls = self.net.getEdge(e).getTLS()
                 if(tls):
-                    if(set(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) & set(self.id_cyclists_crossing_struct)):
+                    if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)):
                             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
                                 self.module_traci.trafficlight.setProgram(tls.getID(), 1)
                     else:
@@ -103,7 +108,7 @@ class Structure:
                     if(key_path_to_struct in self.dict_shortest_path):
                         step_entering_struct = step+self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
-                        step_exiting_struct = step_entering_struct+self.path_length/self.dict_cyclists[i].max_speed
+                        step_exiting_struct = step_entering_struct+self.path["length"]/self.dict_cyclists[i].max_speed
                         step_arriving_by_crossing_struct = step_exiting_struct+self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
                         #print(step_arriving_by_crossing_struct, self.dict_cyclists[i].estimated_finish_step)

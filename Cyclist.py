@@ -14,18 +14,23 @@ class Cyclist:
 
         self.struct_candidate = struct_candidate
 
+        self.original_path = path
+
+        try:
+            self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
+            self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
+        except KeyError:
+            print(self.id, "bugged. Path to or from struct does not exist")
+            self.alive = False
+            return 
+
         self.module_traci.route.add(str(self.id)+"_sp", path["path"])
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
         
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
 
-        self.original_path = path
-
         self.dict_shortest_path = dict_shortest_path 
-
-        self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
-        self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
 
 
         self.actual_path = self.original_path
@@ -37,10 +42,13 @@ class Cyclist:
         self.max_step_disappeared = 0
 
         self.estimated_travel_time=path["length"]/self.max_speed+path["estimated_waiting_time"]
-        self.estimated_travel_time+=self.estimated_travel_time*0.2
+        self.estimated_travel_time+=self.estimated_travel_time*0.6
         self.estimated_finish_step = step+self.estimated_travel_time
 
         self.actual_edge_id = self.actual_path["path"][0]
+
+        self.alive=True
+
 
 
 
@@ -52,7 +60,7 @@ class Cyclist:
             self.nb_step_disappeared = 0
 
             if(self.struct_candidate and not self.highlited):
-                self.module_traci.vehicle.highlight(self.id)
+                #self.module_traci.vehicle.highlight(self.id)
                 self.highlited = True
             
             if(self.struct_candidate and self.actual_path == self.original_path):
@@ -60,7 +68,7 @@ class Cyclist:
                 if(not path_to_struct_found):
                     return
 
-            if(self.module_traci.vehicle.getRoadID(self.id)==self.structure.start_edge.getID()):
+            if(self.module_traci.vehicle.getRoadID(self.id)==self.structure.start_edge.getID() and len(self.structure.id_cyclists_waiting)>0):
                 if(self.actual_path == self.original_path and self.module_traci.vehicle.getLaneIndex(self.id) == 0):
                     self.module_traci.vehicle.changeLane(self.id, 1, self.structure.start_edge.getLength()/self.max_speed)
                 elif(self.actual_path == self.path_to_struct and self.module_traci.vehicle.getLaneIndex(self.id) == 1):
@@ -71,6 +79,7 @@ class Cyclist:
 
             self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
+
         else:
             if(self.nb_step_disappeared < self.max_step_disappeared):
                 self.nb_step_disappeared+=1
@@ -122,15 +131,11 @@ class Cyclist:
             self.structure.id_cyclists_crossing_struct.remove(self.id)
         if(self.id in self.structure.id_cyclists_waiting):
             self.structure.id_cyclists_waiting.remove(self.id)
-        try:
-            self.module_traci.vehicle.remove(self.id)
-            print(self.id, "removed from dict while still in simu")
-        except self.module_traci.exceptions.TraCIException:
-            return
+
 
     def exit_struct(self):
         self.actual_path = self.original_path
-        self.module_traci.vehicle.setRoute(self.id, [e.getID() for e in self.path_from_struct])
+        self.module_traci.vehicle.setRoute(self.id, self.path_from_struct["path"])
         self.struct_candidate = False
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
