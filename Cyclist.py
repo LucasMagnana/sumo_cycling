@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=True):
+    def __init__(self, id, step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=False):
         self.id = id
         self.start_step = step
         self.net=net
@@ -60,7 +60,7 @@ class Cyclist:
             self.nb_step_disappeared = 0
 
             if(self.struct_candidate and not self.highlited):
-                #self.module_traci.vehicle.highlight(self.id)
+                self.module_traci.vehicle.highlight(self.id)
                 self.highlited = True
             
             if(self.struct_candidate and self.actual_path == self.original_path):
@@ -87,7 +87,7 @@ class Cyclist:
                 self.remove()
                 if(self.estimated_finish_step):
                     tab_ratio.append(((step-self.start_step)-self.estimated_travel_time)/self.estimated_travel_time)
-                    tab_diff.append((step-self.start_step)-self.estimated_travel_time)
+                    tab_diff.append(self.estimated_finish_step-step)
                 return
 
     def calculate_ETA(self, step, path=None):

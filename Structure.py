@@ -1,7 +1,7 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=5):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=5, step_gap=15):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -46,10 +46,11 @@ class Structure:
         self.activated = False
 
         self.net = net
+        self.step_gap = step_gap
 
 
     def step(self, step):
-        if(step%15==14):
+        if(step%self.step_gap==0):
             self.check_for_candidates(step)
 
 
@@ -101,6 +102,7 @@ class Structure:
             self.activated = False
 
     def check_for_candidates(self, step):
+        list_id_candidates = []
         for i in self.dict_cyclists:
             if(self.dict_cyclists[i].nb_step_disappeared == 0):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
@@ -111,7 +113,14 @@ class Structure:
                         step_exiting_struct = step_entering_struct+self.path["length"]/self.dict_cyclists[i].max_speed
                         step_arriving_by_crossing_struct = step_exiting_struct+self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                        #print(step_arriving_by_crossing_struct, self.dict_cyclists[i].estimated_finish_step)
+
+                        if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
+                            list_id_candidates.append(i)
+        
+        if(len(list_id_candidates)>=self.min_group_size):
+            for i in list_id_candidates:
+                self.dict_cyclists[i].struct_candidate=True
+
         return
 
 
