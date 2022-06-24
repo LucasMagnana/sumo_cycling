@@ -108,15 +108,16 @@ class Structure:
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
                     key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                     if(key_path_to_struct in self.dict_shortest_path):
-                        step_entering_struct = step+self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
+                        travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
-                        step_exiting_struct = step_entering_struct+self.path["length"]/self.dict_cyclists[i].max_speed
-                        step_arriving_by_crossing_struct = step_exiting_struct+self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
+                        travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
+                        travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
+                        step_arriving_by_crossing_struct = step+travel_time_by_struct*1.2
 
                         if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                             list_id_candidates.append(i)
-        
+        print(len(list_id_candidates))
         if(len(list_id_candidates)>=self.min_group_size):
             for i in list_id_candidates:
                 self.dict_cyclists[i].struct_candidate=True

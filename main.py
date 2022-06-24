@@ -99,7 +99,7 @@ else:
     with open('sp.dict', 'rb') as infile:
         dict_shortest_path = pickle.load(infile)
 
-structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=10)
+structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, sumolib)
 
 last_dict_cyclists_keys = None
 
@@ -131,7 +131,7 @@ while step <= 10000:
 
         if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
             max_speed = np.random.normal(15, 3)
-            c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib,struct_candidate=False)#id%2==0)
+            c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)#id%2==0)
             if(c.alive):
                 dict_cyclists[str(id)]=c
             id+=1
