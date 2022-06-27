@@ -88,12 +88,20 @@ class Structure:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
 
         if(self.activated):
+
+            if(set(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())) & set(self.id_cyclists_crossing_struct)):
+                for i in self.id_cyclists_waiting:
+                    self.id_cyclists_crossing_struct.append(i)
+                    self.dict_cyclists[i].cross_struct()
+                    self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)
+                    self.id_cyclists_waiting.remove(i)
+            
             for e in self.path["path"]:
                 tls = self.net.getEdge(e).getTLS()
                 if(tls):
                     if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)):
-                            if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
-                                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+                        if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
+                            self.module_traci.trafficlight.setProgram(tls.getID(), 1)
                     else:
                         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
@@ -104,7 +112,8 @@ class Structure:
     def check_for_candidates(self, step):
         list_id_candidates = []
         for i in self.dict_cyclists:
-            if(self.dict_cyclists[i].nb_step_disappeared == 0):
+            if(self.dict_cyclists[i].nb_step_disappeared == 0 and not self.dict_cyclists[i].struct_crossed and self.dict_cyclists[i].actual_path !=\
+                self.path):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
                     key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                     if(key_path_to_struct in self.dict_shortest_path):
@@ -113,11 +122,11 @@ class Structure:
                         travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
                         travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                        step_arriving_by_crossing_struct = step+travel_time_by_struct*1.2
+                        step_arriving_by_crossing_struct = step+self.step_gap+travel_time_by_struct*1.5
 
                         if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                             list_id_candidates.append(i)
-        print(len(list_id_candidates))
+
         if(len(list_id_candidates)>=self.min_group_size):
             for i in list_id_candidates:
                 self.dict_cyclists[i].struct_candidate=True

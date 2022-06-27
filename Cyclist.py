@@ -48,6 +48,7 @@ class Cyclist:
         self.actual_edge_id = self.actual_path["path"][0]
 
         self.alive=True
+        self.struct_crossed = False
 
 
 
@@ -139,6 +140,7 @@ class Cyclist:
         self.struct_candidate = False
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
+        self.struct_crossed = True
 
     def set_max_speed(self, max_speed):
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)

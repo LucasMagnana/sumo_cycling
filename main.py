@@ -104,7 +104,7 @@ structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_pa
 last_dict_cyclists_keys = None
 
 
-while step <= 10000:
+while step <= 2500:
     if(len(dict_cyclists)<100):
 
         if(not load):
