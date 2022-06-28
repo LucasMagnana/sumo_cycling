@@ -50,6 +50,8 @@ class Cyclist:
         self.alive=True
         self.struct_crossed = False
 
+        self.step_cancel_struct_candidature = -1
+
 
 
 
@@ -66,8 +68,12 @@ class Cyclist:
             
             if(self.struct_candidate and self.actual_path == self.original_path):
                 path_to_struct_found = self.go_to_struct()
+                self.step_cancel_struct_candidature = step+250
                 if(not path_to_struct_found):
                     return
+
+            if(step>=self.step_cancel_struct_candidature and (self.id in self.structure.id_cyclists_waiting or self.actual_path == self.path_to_struct)):
+                self.cancel_struct_candidature()
 
             if(self.module_traci.vehicle.getRoadID(self.id)==self.structure.start_edge.getID() and len(self.structure.id_cyclists_waiting)>0):
                 if(self.actual_path == self.original_path and self.module_traci.vehicle.getLaneIndex(self.id) == 0):
@@ -99,8 +105,7 @@ class Cyclist:
         self.estimated_distance = self.module_sumolib.route.getLength(self.net, path)
         #self.estimated_distance = self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path[-1].getID(), 0)
         travel_time = self.estimated_distance/self.max_speed
-        self.estimated_travel_time=travel_time+waiting_time
-        self.estimated_travel_time+=self.estimated_travel_time*0.2
+        self.estimated_travel_time=travel_time+waiting_time*1
         return step+self.estimated_travel_time
 
 
@@ -125,15 +130,6 @@ class Cyclist:
         self.module_traci.vehicle.changeLane(self.id, 0, self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path["path"][-1], 0)/self.max_speed)
 
 
-    def remove(self):
-        #print(self.id, "removed")
-        del self.dict_cyclists[self.id]
-        if(self.id in self.structure.id_cyclists_crossing_struct):
-            self.structure.id_cyclists_crossing_struct.remove(self.id)
-        if(self.id in self.structure.id_cyclists_waiting):
-            self.structure.id_cyclists_waiting.remove(self.id)
-
-
     def exit_struct(self):
         self.actual_path = self.original_path
         self.module_traci.vehicle.setRoute(self.id, self.path_from_struct["path"])
@@ -141,6 +137,31 @@ class Cyclist:
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
         self.struct_crossed = True
+
+    def cancel_struct_candidature(self):
+        if(self.id in self.structure.id_cyclists_waiting):
+            self.structure.id_cyclists_waiting.remove(self.id)
+        else:
+            print(self.id, "cancelling while not in waiting list")
+        self.actual_path = self.original_path
+        self.struct_candidate = False
+        self.struct_crossed = True
+        
+        self.module_traci.vehicle.changeTarget(self.id, self.original_path["path"][-1])
+        if(self.module_traci.vehicle.isStopped(self.id)):
+            self.module_traci.vehicle.resume(self.id)
+        if(self.module_traci.vehicle.getNextStops(self.id)):
+            self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
+        self.step_cancel_struct_candidature = -1
+
+
+    def remove(self):
+        #print(self.id, "removed")
+        del self.dict_cyclists[self.id]
+        if(self.id in self.structure.id_cyclists_crossing_struct):
+            self.structure.id_cyclists_crossing_struct.remove(self.id)
+        if(self.id in self.structure.id_cyclists_waiting):
+            self.structure.id_cyclists_waiting.remove(self.id)
 
     def set_max_speed(self, max_speed):
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)

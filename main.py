@@ -65,14 +65,14 @@ tab_ratio = []
 id=0
 step=0
 
-save = True
-load = False
+save_scenario = True
+load_scenario = True
 
-tab_od = []
+tab_od_time = []
 
-if(load):
-    with open('OD.tab', 'rb') as infile:
-        tab_od_loaded = pickle.load(infile)
+if(load_scenario):
+    with open('timeOD.tab', 'rb') as infile:
+        tab_time_od_loaded = pickle.load(infile)
 
 
 load_shortest_paths = False
@@ -103,38 +103,37 @@ structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_pa
 
 last_dict_cyclists_keys = None
 
+cont = True
 
-while step <= 2500:
-    if(len(dict_cyclists)<100):
+while len(dict_cyclists) != 0 or id<=2000:
+    path=None
+    if(not load_scenario):
+        if(len(dict_cyclists)<100 and id<=2000):
+                e1 = randint(0, len(edges)-1)
+                e2 = randint(0, len(edges)-1)
+                key_dict = edges[e1].getID()+";"+edges[e2].getID()
+                if(key_dict in dict_shortest_path):
+                    path = dict_shortest_path[key_dict]
+                else:
+                    path = None
+    elif(len(tab_time_od_loaded)>0 and step == tab_time_od_loaded[0][0]):
+        e1 = tab_time_od_loaded[0][1]
+        e2 = tab_time_od_loaded[0][2]
+        max_speed = tab_time_od_loaded[0][3]
+        tab_time_od_loaded.pop(0)
+        key_dict = edges[e1].getID()+";"+edges[e2].getID()
+        if(key_dict in dict_shortest_path):
+            path = dict_shortest_path[key_dict]
 
-        if(not load):
-            e1 = randint(0, len(edges)-1)
-            e2 = randint(0, len(edges)-1)
-            key_dict = edges[e1].getID()+";"+edges[e2].getID()
-            if(key_dict in dict_shortest_path):
-                path = dict_shortest_path[key_dict]
-            else:
-                path = None
-        else:
-            e1 = tab_od_loaded[0][0]
-            e2 = tab_od_loaded[0][1]
-            tab_od_loaded.pop(0)
-            key_dict = edges[e1].getID()+";"+edges[e2].getID()
-            if(key_dict in dict_shortest_path):
-                path = dict_shortest_path[key_dict]
-            else:
-                path = None
-
-        if(save):
-            tab_od.append([e1, e2])
-
-
-        if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+    if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+        if(not load_scenario):
             max_speed = np.random.normal(15, 3)
-            c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)#id%2==0)
-            if(c.alive):
-                dict_cyclists[str(id)]=c
-            id+=1
+        c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
+        if(c.alive):
+            dict_cyclists[str(id)]=c
+            if(save_scenario):
+                tab_od_time.append([step, e1, e2, max_speed])
+        id+=1
 
 
     traci.simulationStep()
@@ -152,10 +151,14 @@ while step <= 2500:
     structure.step(step)
 
     last_dict_cyclists_keys = copy.deepcopy(list(dict_cyclists.keys()))   
-        
-
 
     step += 1
 
-print("temp diff:", sum(tab_diff)/len(tab_diff), "ratio:", sum(tab_ratio)/len(tab_ratio), "data number:", len(tab_diff), "last id:", id, )
+if(save_scenario):
+    with open('timeOD.tab', 'wb') as outfile:
+        pickle.dump(tab_od_time, outfile)
+
+
+print("temp diff:", sum(tab_diff)/len(tab_diff), ", ratio:", sum(tab_ratio)/len(tab_ratio), ", data number:", len(tab_diff), ",",\
+structure.num_cyclists_crossed, "cyclits used struct, last step:", step, )
 traci.close()
