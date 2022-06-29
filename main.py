@@ -3,8 +3,8 @@ from random import randint
 import numpy as np 
 import pickle
 import osmnx as ox
-import shelve
 import copy
+import matplotlib.pyplot as plt
 
 from Cyclist import Cyclist
 from Structure import Structure
@@ -16,7 +16,7 @@ else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
 sumoBinary = "/usr/bin/sumo-gui"
-sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000']
+sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0']
 
 
 import traci
@@ -67,10 +67,9 @@ step=0
 
 tab_od_time = []
 
-save_scenario = True
-load_scenario = True
+new_scenario = False
 
-if(load_scenario):
+if(not new_scenario):
     with open('timeOD.tab', 'rb') as infile:
         tab_time_od_loaded = pickle.load(infile)
 
@@ -99,7 +98,8 @@ else:
     with open('sp.dict', 'rb') as infile:
         dict_shortest_path = pickle.load(infile)
 
-structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, sumolib)
+structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci,\
+open=False, min_group_size=5, step_gap=15, time_travel_multiplier=1.35)
 
 last_dict_cyclists_keys = None
 
@@ -108,9 +108,9 @@ cont = True
 num_cyclists = 5000
 max_num_cyclists_same_time = 250
 
-while(len(dict_cyclists) != 0 or ((not load_scenario and id<=num_cyclists) or (load_scenario and len(tab_time_od_loaded)>0))):
+while(len(dict_cyclists) != 0 or ((new_scenario and id<=num_cyclists) or (not new_scenario and len(tab_time_od_loaded)>0))):
     path=None
-    if(not load_scenario):
+    if(new_scenario):
         if(len(dict_cyclists)<max_num_cyclists_same_time and id<=num_cyclists):
                 e1 = randint(0, len(edges)-1)
                 e2 = randint(0, len(edges)-1)
@@ -129,12 +129,12 @@ while(len(dict_cyclists) != 0 or ((not load_scenario and id<=num_cyclists) or (l
             path = dict_shortest_path[key_dict]
 
     if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
-        if(not load_scenario):
+        if(new_scenario):
             max_speed = np.random.normal(15, 3)
         c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
         if(c.alive):
             dict_cyclists[str(id)]=c
-            if(save_scenario):
+            if(new_scenario):
                 tab_od_time.append([step, e1, e2, max_speed])
         id+=1
 
@@ -148,7 +148,7 @@ while(len(dict_cyclists) != 0 or ((not load_scenario and id<=num_cyclists) or (l
         try:
             dict_cyclists[i].step(step, tab_diff, tab_ratio)
         except KeyError:
-            traci.vehicle.remove(self.id)
+            traci.vehicle.remove(i)
             print(i, "removed from dict while still in simu (main)")
 
     structure.step(step)
@@ -157,11 +157,21 @@ while(len(dict_cyclists) != 0 or ((not load_scenario and id<=num_cyclists) or (l
 
     step += 1
 
-if(save_scenario):
+if(new_scenario):
     with open('timeOD.tab', 'wb') as outfile:
         pickle.dump(tab_od_time, outfile)
 
+traci.close()
+
 
 print("temp diff:", sum(tab_diff)/len(tab_diff), ", ratio:", sum(tab_ratio)/len(tab_ratio), ", data number:", len(tab_diff), ",",\
-structure.num_cyclists_crossed, "cyclits used struct, last step:", step, )
-traci.close()
+structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+
+plt.clf()
+fig1, ax1 = plt.subplots()
+ax1.set_title('')
+ax1.boxplot(tab_diff)
+if(structure.open):
+    plt.savefig("images/time_diff_struct_open.png")
+else:
+    plt.savefig("images/time_diff_struct_close.png")

@@ -1,7 +1,7 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, sumolib, min_group_size=5, step_gap=15):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -50,9 +50,12 @@ class Structure:
 
         self.num_cyclists_crossed = 0
 
+        self.open = open
+        self.time_travel_multiplier = time_travel_multiplier
+
 
     def step(self, step):
-        if(step%self.step_gap==0):
+        if(self.open and step%self.step_gap==0):
             self.check_for_candidates(step)
 
 
@@ -125,7 +128,7 @@ class Structure:
                         travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
                         travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                        step_arriving_by_crossing_struct = step+travel_time_by_struct*1.35
+                        step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
 
                         if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                             list_id_candidates.append(i)
