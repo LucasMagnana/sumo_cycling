@@ -125,7 +125,7 @@ class Structure:
                         travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
                         travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
                         self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                        step_arriving_by_crossing_struct = step+travel_time_by_struct*1.65
+                        step_arriving_by_crossing_struct = step+travel_time_by_struct*1.35
 
                         if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                             list_id_candidates.append(i)

@@ -65,10 +65,10 @@ tab_ratio = []
 id=0
 step=0
 
+tab_od_time = []
+
 save_scenario = True
 load_scenario = True
-
-tab_od_time = []
 
 if(load_scenario):
     with open('timeOD.tab', 'rb') as infile:
@@ -105,10 +105,13 @@ last_dict_cyclists_keys = None
 
 cont = True
 
-while len(dict_cyclists) != 0 or id<=2000:
+num_cyclists = 5000
+max_num_cyclists_same_time = 250
+
+while(len(dict_cyclists) != 0 or ((not load_scenario and id<=num_cyclists) or (load_scenario and len(tab_time_od_loaded)>0))):
     path=None
     if(not load_scenario):
-        if(len(dict_cyclists)<100 and id<=2000):
+        if(len(dict_cyclists)<max_num_cyclists_same_time and id<=num_cyclists):
                 e1 = randint(0, len(edges)-1)
                 e2 = randint(0, len(edges)-1)
                 key_dict = edges[e1].getID()+";"+edges[e2].getID()
