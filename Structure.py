@@ -119,7 +119,8 @@ class Structure:
     def check_for_candidates(self, step):
         list_id_candidates = []
         for i in self.dict_cyclists:
-            if(self.dict_cyclists[i].nb_step_disappeared == 0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_waiting):
+            if(self.dict_cyclists[i].nb_step_disappeared == 0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
+            and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
                     key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                     if(key_path_to_struct in self.dict_shortest_path):
