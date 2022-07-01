@@ -15,7 +15,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0']
 
 
@@ -51,6 +51,7 @@ def calculate_estimated_waiting_time(path, net):
         
     return estimated_wait_tls
 
+
 traci.start(sumoCmd)
 
 net = sumolib.net.readNet('osm.net.xml')
@@ -66,13 +67,6 @@ id=0
 step=0
 
 tab_od_time = []
-
-new_scenario = False
-
-if(not new_scenario):
-    with open('timeOD.tab', 'rb') as infile:
-        tab_time_od_loaded = pickle.load(infile)
-
 
 load_shortest_paths = False
 
@@ -98,20 +92,48 @@ else:
     with open('sp.dict', 'rb') as infile:
         dict_shortest_path = pickle.load(infile)
 
+
+
+
+new_scenario = False
+
+if(not new_scenario):
+    with open('timeOD.tab', 'rb') as infile:
+        tab_time_od_loaded = pickle.load(infile)
+
+
 structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci,\
 open=False, min_group_size=5, step_gap=15, time_travel_multiplier=1.35)
 
 last_dict_cyclists_keys = None
 
-cont = True
 
 num_cyclists = 5000
-max_num_cyclists_same_time = 250
+max_num_cyclists_same_time = 150
+
+
+while(len(dict_cyclists)<max_num_cyclists_same_time):
+    e1 = randint(0, len(edges)-1)
+    e2 = randint(0, len(edges)-1)
+    key_dict = edges[e1].getID()+";"+edges[e2].getID()
+    if(key_dict in dict_shortest_path):
+        path = dict_shortest_path[key_dict]
+    else:
+        path = None
+
+    if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+        max_speed = np.random.normal(15, 3)
+        c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
+        if(c.alive):
+            dict_cyclists[str(id)]=c
+            tab_od_time.append([step, e1, e2, max_speed])
+        id+=1
 
 while(len(dict_cyclists) != 0 or ((new_scenario and id<=num_cyclists) or (not new_scenario and len(tab_time_od_loaded)>0))):
     path=None
     if(new_scenario):
-        if(len(dict_cyclists)<max_num_cyclists_same_time and id<=num_cyclists):
+        if(id<=num_cyclists):
+            if(len(dict_cyclists)<max_num_cyclists_same_time):
                 e1 = randint(0, len(edges)-1)
                 e2 = randint(0, len(edges)-1)
                 key_dict = edges[e1].getID()+";"+edges[e2].getID()
@@ -119,24 +141,30 @@ while(len(dict_cyclists) != 0 or ((new_scenario and id<=num_cyclists) or (not ne
                     path = dict_shortest_path[key_dict]
                 else:
                     path = None
-    elif(len(tab_time_od_loaded)>0 and step == tab_time_od_loaded[0][0]):
-        e1 = tab_time_od_loaded[0][1]
-        e2 = tab_time_od_loaded[0][2]
-        max_speed = tab_time_od_loaded[0][3]
-        tab_time_od_loaded.pop(0)
-        key_dict = edges[e1].getID()+";"+edges[e2].getID()
-        if(key_dict in dict_shortest_path):
-            path = dict_shortest_path[key_dict]
 
-    if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
-        if(new_scenario):
-            max_speed = np.random.normal(15, 3)
-        c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
-        if(c.alive):
-            dict_cyclists[str(id)]=c
-            if(new_scenario):
-                tab_od_time.append([step, e1, e2, max_speed])
-        id+=1
+                if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+                    max_speed = np.random.normal(15, 3)
+                    c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
+                    if(c.alive):
+                        dict_cyclists[str(id)]=c
+                        tab_od_time.append([step, e1, e2, max_speed])
+                    id+=1
+
+    elif(len(tab_time_od_loaded)>0):
+        while(len(tab_time_od_loaded)>0 and step == tab_time_od_loaded[0][0]):
+            e1 = tab_time_od_loaded[0][1]
+            e2 = tab_time_od_loaded[0][2]
+            max_speed = tab_time_od_loaded[0][3]
+            tab_time_od_loaded.pop(0)
+            key_dict = edges[e1].getID()+";"+edges[e2].getID()
+            if(key_dict in dict_shortest_path):
+                path = dict_shortest_path[key_dict]
+
+            if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+                c = Cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib)
+                if(c.alive):
+                    dict_cyclists[str(id)]=c
+                id+=1
 
 
     traci.simulationStep()
