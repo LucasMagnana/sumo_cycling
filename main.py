@@ -15,7 +15,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo"
+sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--no-warnings']
 
 
@@ -52,11 +52,11 @@ def calculate_estimated_waiting_time(path, net):
     return estimated_wait_tls
 
 
-def spawn_cyclist(id, step, path, dict_shortest_path, dict_cyclists, net, structure, edges, tab_scenario=None, max_speed=None, finish_step=-1):
+def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab_scenario=None, max_speed=None, finish_step=-1):
     if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
         if(max_speed==None):
             max_speed = np.random.normal(15, 3)
-        c = Cyclist(id, step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, finish_step=finish_step)
+        c = Cyclist(id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, finish_step=finish_step)
         if(c.alive):
             dict_cyclists[id]=c
             if(tab_scenario != None):
@@ -71,6 +71,7 @@ net = sumolib.net.readNet('osm.net.xml')
 edges = net.getEdges()
 
 dict_cyclists = {}
+dict_cyclists_deleted = {}
 
 id=0
 step=0
@@ -111,10 +112,8 @@ else:
         tab_scenario = pickle.load(infile)
 
 
-structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci,\
-open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1.35)
-
-last_dict_cyclists_keys = None
+structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci,\
+open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1.5)
 
 
 num_cyclists = 5000
@@ -129,7 +128,7 @@ while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
         path = dict_shortest_path[key_dict]
     else:
         path = None
-    if(spawn_cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, edges, tab_scenario=tab_scenario)):
+    if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
         id+=1
 
 
@@ -146,38 +145,29 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                 else:
                     path = None
 
-                if(spawn_cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, edges, tab_scenario=tab_scenario)):
+                if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
                     id+=1
+    else:
+        while(id<=num_cyclists and step == tab_scenario[id]["start_step"]):
+            e1=tab_scenario[id]["start_edge"]
+            e2=tab_scenario[id]["end_edge"]
+            key_dict = edges[e1].getID()+";"+edges[e2].getID()
+            path = dict_shortest_path[key_dict]
+            finish_step=-1
+            if("end_step" in tab_scenario[id]):
+                finish_step=tab_scenario[id]["end_step"]
+            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, finish_step=finish_step, max_speed=tab_scenario[id]["max_speed"])):
+                id+=1
 
-    while(id<=num_cyclists and step == tab_scenario[id]["start_step"]):
-        e1=tab_scenario[id]["start_edge"]
-        e2=tab_scenario[id]["end_edge"]
-        key_dict = edges[e1].getID()+";"+edges[e2].getID()
-        path = dict_shortest_path[key_dict]
-        finish_step=-1
-        if("end_step" in tab_scenario[id]):
-            finish_step=tab_scenario[id]["end_step"]
-        if(spawn_cyclist(str(id), step, path, dict_shortest_path, dict_cyclists, net, structure, edges, finish_step=finish_step, max_speed=tab_scenario[id]["max_speed"])):
-            id+=1
+    traci.simulationStep() 
 
-
-
-
-    traci.simulationStep()
-
-    if(last_dict_cyclists_keys == None):
-        last_dict_cyclists_keys = copy.deepcopy(list(dict_cyclists.keys()))   
-
-    for i in last_dict_cyclists_keys:
-        try:
-            dict_cyclists[i].step(step, tab_scenario, new_scenario)
-        except KeyError:
-            traci.vehicle.remove(i)
-            print(i, "removed from dict while still in simu (main)")
+    for i in copy.deepcopy(list(dict_cyclists.keys())):
+        dict_cyclists[i].step(step, tab_scenario, new_scenario)
+        if(not dict_cyclists[i].alive):
+            dict_cyclists_deleted[i] = dict_cyclists[i]
+            del dict_cyclists[i]
 
     structure.step(step)
-
-    last_dict_cyclists_keys = copy.deepcopy(list(dict_cyclists.keys()))   
 
     step += 1
 

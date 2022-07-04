@@ -1,7 +1,7 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -14,6 +14,7 @@ class Structure:
         self.path = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]
 
         self.dict_cyclists = dict_cyclists
+        self.dict_cyclists_deleted = dict_cyclists_deleted
 
         self.module_traci = traci
 
@@ -62,14 +63,16 @@ class Structure:
 
         if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=self.min_group_size):
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-                if(i in self.dict_cyclists):
-                    if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
-                    and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
-                        self.id_cyclists_waiting.append(i)
-                        #print(i, "waiting")
-                else:
-                    self.module_traci.vehicle.remove(i)
-                    print(i, "removed from dict while still in simu (struct)")
+                if(i not in self.dict_cyclists):
+                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
+                    self.dict_cyclists[i].alive = True
+                    del self.dict_cyclists_deleted[i]
+                    print(i, "removed from dict while still in simu")
+                if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
+                and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                    self.id_cyclists_waiting.append(i)
+                    #print(i, "waiting")
+                    
 
 
                     #print(i, "waiting")
@@ -78,12 +81,13 @@ class Structure:
             self.activated = True
             min_max_speed = 100
             for i in self.id_cyclists_waiting:
-                try:
-                    self.dict_cyclists[i].cross_struct()
-                except KeyError:
-                    self.module_traci.vehicle.remove(i)
-                    print(i, "bugged (disapperead from id list)")
-                    continue
+                if(i not in self.dict_cyclists):
+                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
+                    self.dict_cyclists[i].alive = True
+                    del self.dict_cyclists_deleted[i]
+                    print(i, "bugged (disapperead from id list while waiting)")
+
+                self.dict_cyclists[i].cross_struct()
                 if(self.dict_cyclists[i].max_speed < min_max_speed):
                     min_max_speed = self.dict_cyclists[i].max_speed
                 #print(i, "crossing")
@@ -119,7 +123,7 @@ class Structure:
     def check_for_candidates(self, step):
         list_id_candidates = []
         for i in self.dict_cyclists:
-            if(self.dict_cyclists[i].nb_step_disappeared == 0 and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
+            if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
                     key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()

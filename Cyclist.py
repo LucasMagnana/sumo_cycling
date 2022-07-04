@@ -2,11 +2,10 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_shortest_path, dict_cyclists, net, structure, max_speed, traci, sumolib, struct_candidate=False, finish_step=-1):
+    def __init__(self, id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, struct_candidate=False, finish_step=-1):
         self.id = id
         self.start_step = step
         self.net=net
-        self.dict_cyclists = dict_cyclists
         self.structure = structure
 
         self.module_sumolib = sumolib
@@ -16,10 +15,12 @@ class Cyclist:
 
         self.original_path = path
 
+
         try:
             self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
             self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
         except KeyError:
+            print("Spawn failed, no path from or to the structure")
             self.alive = False
             return 
 
@@ -36,9 +37,6 @@ class Cyclist:
 
 
         self.highlited = False
-
-        self.nb_step_disappeared = 0
-        self.max_step_disappeared = 0
 
         if(finish_step == -1):
             self.estimated_travel_time=path["length"]/self.max_speed+path["estimated_waiting_time"]
@@ -63,7 +61,6 @@ class Cyclist:
 
         if(self.id in self.module_traci.vehicle.getIDList()):
             self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
-            self.nb_step_disappeared = 0
 
             if(self.struct_candidate and not self.highlited):
                 self.module_traci.vehicle.highlight(self.id)
@@ -91,15 +88,13 @@ class Cyclist:
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
 
         else:
-            if(self.nb_step_disappeared < self.max_step_disappeared):
-                self.nb_step_disappeared+=1
-            else :
-                self.remove()
-                if(new_scenario):
-                    tab_scenario[int(self.id)]["end_step"]=step
-                else:
-                    tab_scenario[int(self.id)]["end_step_struct"]=step
-                return
+            self.alive = False
+            if(new_scenario):
+                tab_scenario[int(self.id)]["end_step"]=step
+            else:
+                tab_scenario[int(self.id)]["end_step_struct"]=step
+
+
 
     def calculate_ETA(self, step, path=None):
         if(path == None):
@@ -120,7 +115,7 @@ class Cyclist:
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1)
             return True
         except self.module_traci.exceptions.TraCIException:
-            self.remove()
+            self.alive = False
             print(self.id, "bugged (no path found to the struct)")
             return False
 
@@ -153,7 +148,7 @@ class Cyclist:
                 self.original_path = self.dict_shortest_path[self.actual_edge_id+";"+self.original_path["path"][-1]]
             except KeyError:
                 print(self.id, "bugged during cancelling candidature, no path found.")
-                self.remove()
+                self.alive = False
                 return
             self.module_traci.vehicle.setRoute(self.id, self.original_path["path"])
         else:
@@ -169,14 +164,6 @@ class Cyclist:
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
         self.step_cancel_struct_candidature = -1
 
-
-    def remove(self):
-        #print(self.id, "removed")
-        del self.dict_cyclists[self.id]
-        if(self.id in self.structure.id_cyclists_crossing_struct):
-            self.structure.id_cyclists_crossing_struct.remove(self.id)
-        if(self.id in self.structure.id_cyclists_waiting):
-            self.structure.id_cyclists_waiting.remove(self.id)
 
     def set_max_speed(self, max_speed):
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
