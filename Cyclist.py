@@ -53,6 +53,9 @@ class Cyclist:
 
         self.step_cancel_struct_candidature = -1
 
+        self.waiting_time = 0
+        self.distance_travelled = 0
+
 
 
 
@@ -89,10 +92,11 @@ class Cyclist:
 
         else:
             self.alive = False
+            self.finish_step=step
             if(new_scenario):
                 tab_scenario[int(self.id)]["end_step"]=step
-            else:
-                tab_scenario[int(self.id)]["end_step_struct"]=step
+                tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
+                tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
 
 
 

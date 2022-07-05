@@ -15,7 +15,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--no-warnings']
 
 
@@ -113,7 +113,7 @@ else:
 
 
 structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci,\
-open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1.5)
+open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1.35)
 
 
 num_cyclists = 5000
@@ -171,31 +171,86 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
 
     step += 1
 
-if(new_scenario):
+if(not new_scenario):
     with open('scenario.tab', 'wb') as outfile:
         pickle.dump(tab_scenario, outfile)
 
 traci.close()
 
 
-print("data number:", len(tab_scenario), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+print("data number:", len(dict_cyclists_deleted), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
+tab_diff_arrival_time = [[],[],[]]
+tab_diff_waiting_time = [[],[],[]]
+tab_diff_distance_travelled = [[],[],[]]
 
-tab_diff=[]
-bad_data=0
 if(not new_scenario):
-    for c in tab_scenario:
-        if(c["end_step"] != -1 and "end_step_struct" in c):
-            tab_diff.append(c["end_step"]-c["end_step_struct"])
+    for i in dict_cyclists_deleted:
+        c = dict_cyclists_deleted[i]
+        if(c.canceled_candidature):
+            tab_diff_arrival_time[2].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
+            tab_diff_waiting_time[2].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
+            tab_diff_distance_travelled[2].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
+        elif(c.struct_crossed):
+            tab_diff_arrival_time[1].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
+            tab_diff_waiting_time[1].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
+            tab_diff_distance_travelled[1].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
         else:
-            bad_data+=1
+            tab_diff_arrival_time[0].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
+            tab_diff_waiting_time[0].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
+            tab_diff_distance_travelled[0].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
+
+
+    tab_mean_diff_arrival_time = []
+    for i in range(len(tab_diff_arrival_time)):
+        if(len(tab_diff_arrival_time[i])==0):
+            tab_mean_diff_arrival_time.append(0)
+        else:
+            tab_mean_diff_arrival_time.append(sum(tab_diff_arrival_time[i])/len(tab_diff_arrival_time[i]))
+
+
+    tab_mean_diff_waiting_time = []
+    for i in range(len(tab_diff_waiting_time)):
+        if(len(tab_diff_waiting_time[i])==0):
+            tab_mean_diff_waiting_time.append(0)
+        else:
+            tab_mean_diff_waiting_time.append(sum(tab_diff_waiting_time[i])/len(tab_diff_waiting_time[i]))
+
+    tab_mean_diff_distance_travelled = []
+    for i in range(len(tab_diff_distance_travelled)):
+        if(len(tab_diff_distance_travelled[i])==0):
+            tab_mean_diff_distance_travelled.append(0)
+        else:
+            tab_mean_diff_distance_travelled.append(sum(tab_diff_distance_travelled[i])/len(tab_diff_distance_travelled[i]))
+
     plt.clf()
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
-    ax1.boxplot(tab_diff)
+    ax1.boxplot(tab_diff_arrival_time[0])
     if(structure.open):
         plt.savefig("images/time_diff_struct_open.png")
     else:
         plt.savefig("images/time_diff_struct_close.png")
 
-    print("mean diff:", sum(tab_diff)/len(tab_diff), "bad data:", bad_data)
+    print("mean finish time diff:", tab_mean_diff_arrival_time[0])
+
+
+    if(structure.open):
+
+        plt.clf()
+        fig1, ax1 = plt.subplots()
+        ax1.set_title('')
+        ax1.hist(tab_mean_diff_arrival_time)
+        plt.savefig("images/mean_time_diff.png")
+
+        plt.clf()
+        fig1, ax1 = plt.subplots()
+        ax1.set_title('')
+        ax1.hist(tab_mean_diff_waiting_time)
+        plt.savefig("images/mean_waiting_time.png")
+
+        plt.clf()
+        fig1, ax1 = plt.subplots()
+        ax1.set_title('')
+        ax1.hist(tab_mean_diff_distance_travelled)
+        plt.savefig("images/mean_distance_travelled.png")
