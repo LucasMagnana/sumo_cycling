@@ -60,7 +60,7 @@ def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab
         if(c.alive):
             dict_cyclists[id]=c
             if(tab_scenario != None):
-                tab_scenario.append({"start_step": step, "start_edge":e1, "end_edge":e2, "max_speed": max_speed, "end_step":-1})
+                tab_scenario.append({"start_step": step, "start_edge":e1, "end_edge":e2, "max_speed": max_speed, "finish_step":-1})
             return True
     return False
 
@@ -72,6 +72,7 @@ edges = net.getEdges()
 
 dict_cyclists = {}
 dict_cyclists_deleted = {}
+dict_cyclists_arrived = {}
 
 id=0
 step=0
@@ -106,14 +107,21 @@ else:
 new_scenario = False
 
 if(new_scenario):
+    print("WARNING : Creating a new scenario...")
     tab_scenario=[]
 else:
+    print("WARNING : Loading the scenario...")
     with open('scenario.tab', 'rb') as infile:
         tab_scenario = pickle.load(infile)
 
 
 structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci,\
-open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1.35)
+open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.45)
+
+if(structure.open):
+    print("WARNING : Structure is open...")
+else:
+    print("WARNING : Structure is closed...")
 
 
 num_cyclists = 5000
@@ -154,59 +162,81 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             key_dict = edges[e1].getID()+";"+edges[e2].getID()
             path = dict_shortest_path[key_dict]
             finish_step=-1
-            if("end_step" in tab_scenario[id]):
-                finish_step=tab_scenario[id]["end_step"]
+            if("finish_step" in tab_scenario[id]):
+                finish_step=tab_scenario[id]["finish_step"]
             if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, finish_step=finish_step, max_speed=tab_scenario[id]["max_speed"])):
                 id+=1
 
     traci.simulationStep() 
 
+    for i in copy.deepcopy(list(dict_cyclists_deleted.keys())):
+        if(i in traci.vehicle.getIDList()):
+            dict_cyclists[i] = dict_cyclists_deleted[i]
+            del dict_cyclists_deleted[i]
+            dict_cyclists[i].alive=True
+        elif(step-dict_cyclists_deleted[i].finish_step>100):
+            dict_cyclists_arrived[i] = dict_cyclists_deleted[i]
+            del dict_cyclists_deleted[i]
+
+
     for i in copy.deepcopy(list(dict_cyclists.keys())):
         dict_cyclists[i].step(step, tab_scenario, new_scenario)
         if(not dict_cyclists[i].alive):
-            dict_cyclists_deleted[i] = dict_cyclists[i]
+            if(not dict_cyclists[i].arrived):
+                dict_cyclists_deleted[i] = dict_cyclists[i]
+            else:
+                dict_cyclists_arrived[i] = dict_cyclists[i]
             del dict_cyclists[i]
 
     structure.step(step)
 
+    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start, {} in dict_deleted.".format(step, len(traci.vehicle.getIDList()), id, len(dict_cyclists_deleted)), end="")
+
     step += 1
 
-if(not new_scenario):
+if(new_scenario):
     with open('scenario.tab', 'wb') as outfile:
         pickle.dump(tab_scenario, outfile)
 
 traci.close()
 
+for i in dict_cyclists_deleted:
+    dict_cyclists_arrived[i]=dict_cyclists_deleted[i]
 
-print("data number:", len(dict_cyclists_deleted), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
-tab_diff_arrival_time = [[],[],[]]
+print("data number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+
+tab_diff_finish_step = [[],[],[]]
 tab_diff_waiting_time = [[],[],[]]
 tab_diff_distance_travelled = [[],[],[]]
 
+tab_all_diff_arrival_time=[]
+
 if(not new_scenario):
-    for i in dict_cyclists_deleted:
-        c = dict_cyclists_deleted[i]
-        if(c.canceled_candidature):
-            tab_diff_arrival_time[2].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
-            tab_diff_waiting_time[2].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
-            tab_diff_distance_travelled[2].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
-        elif(c.struct_crossed):
-            tab_diff_arrival_time[1].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
-            tab_diff_waiting_time[1].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
-            tab_diff_distance_travelled[1].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
-        else:
-            tab_diff_arrival_time[0].append(c.finish_step-tab_scenario[int(c.id)]["end_step"])
-            tab_diff_waiting_time[0].append(c.waiting_time-tab_scenario[int(c.id)]["waiting_time"])
-            tab_diff_distance_travelled[0].append(c.distance_travelled-tab_scenario[int(c.id)]["distance_travelled"])
+    for i in dict_cyclists_arrived:
+        c = dict_cyclists_arrived[i]
+        tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+        if(structure.open):
+            if(c.canceled_candidature):
+                tab_diff_finish_step[2].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[2].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[2].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+            elif(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
+                tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+            elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
+                tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
 
 
     tab_mean_diff_arrival_time = []
-    for i in range(len(tab_diff_arrival_time)):
-        if(len(tab_diff_arrival_time[i])==0):
+    for i in range(len(tab_diff_finish_step)):
+        if(len(tab_diff_finish_step[i])==0):
             tab_mean_diff_arrival_time.append(0)
         else:
-            tab_mean_diff_arrival_time.append(sum(tab_diff_arrival_time[i])/len(tab_diff_arrival_time[i]))
+            tab_mean_diff_arrival_time.append(sum(tab_diff_finish_step[i])/len(tab_diff_finish_step[i]))
 
 
     tab_mean_diff_waiting_time = []
@@ -226,31 +256,33 @@ if(not new_scenario):
     plt.clf()
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
-    ax1.boxplot(tab_diff_arrival_time[0])
+    ax1.boxplot(tab_all_diff_arrival_time)
     if(structure.open):
         plt.savefig("images/time_diff_struct_open.png")
     else:
         plt.savefig("images/time_diff_struct_close.png")
 
-    print("mean finish time diff:", tab_mean_diff_arrival_time[0])
+    print("mean finish time diff:", sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
 
 
     if(structure.open):
 
+        labels=["Gagnants", "Perdants", "Annulés"]
+
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_arrival_time)), tab_mean_diff_arrival_time)
+        ax1.bar(range(len(tab_mean_diff_arrival_time)), tab_mean_diff_arrival_time, tick_label=labels)
         plt.savefig("images/mean_time_diff.png")
 
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_waiting_time)), tab_mean_diff_waiting_time)
+        ax1.bar(range(len(tab_mean_diff_waiting_time)), tab_mean_diff_waiting_time, tick_label=labels)
         plt.savefig("images/mean_waiting_time.png")
 
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_distance_travelled)), tab_mean_diff_distance_travelled)
+        ax1.bar(range(len(tab_mean_diff_distance_travelled)), tab_mean_diff_distance_travelled, tick_label=labels)
         plt.savefig("images/mean_distance_travelled.png")

@@ -61,18 +61,17 @@ class Structure:
 
 
 
-        if(len(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()))>=self.min_group_size):
-            for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-                if(i not in self.dict_cyclists):
-                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
-                    self.dict_cyclists[i].alive = True
-                    del self.dict_cyclists_deleted[i]
-                    print(i, "removed from dict while still in simu")
-                if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
-                and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
-                    self.id_cyclists_waiting.append(i)
-                    #print(i, "waiting")
-                    
+        for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
+            if(i not in self.dict_cyclists):
+                self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
+                self.dict_cyclists[i].alive = True
+                del self.dict_cyclists_deleted[i]
+                print(i, "removed from dict while still in simu")
+            if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
+            and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                self.id_cyclists_waiting.append(i)
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+150
+                
 
 
                     #print(i, "waiting")

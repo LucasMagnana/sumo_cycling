@@ -20,7 +20,7 @@ class Cyclist:
             self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
             self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
         except KeyError:
-            print("Spawn failed, no path from or to the structure")
+            #print("Spawn failed, no path from or to the structure")
             self.alive = False
             return 
 
@@ -56,6 +56,8 @@ class Cyclist:
         self.waiting_time = 0
         self.distance_travelled = 0
 
+        self.arrived=False
+
 
 
 
@@ -64,6 +66,11 @@ class Cyclist:
 
         if(self.id in self.module_traci.vehicle.getIDList()):
             self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
+            self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
+            self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
+
+            if(self.actual_edge_id==self.original_path["path"][-1]):
+                self.arrived = True
 
             if(self.struct_candidate and not self.highlited):
                 self.module_traci.vehicle.highlight(self.id)
@@ -71,11 +78,10 @@ class Cyclist:
             
             if(self.struct_candidate and self.actual_path == self.original_path):
                 path_to_struct_found = self.go_to_struct()
-                self.step_cancel_struct_candidature = step+250
                 if(not path_to_struct_found):
                     return
 
-            if(step>=self.step_cancel_struct_candidature and (self.id in self.structure.id_cyclists_waiting or self.actual_path == self.path_to_struct)):
+            if(self.step_cancel_struct_candidature > 0 and step>=self.step_cancel_struct_candidature and (self.id in self.structure.id_cyclists_waiting or self.actual_path == self.path_to_struct)):
                 self.cancel_struct_candidature()
 
             if(self.actual_edge_id==self.structure.start_edge.getID() and len(self.structure.id_cyclists_waiting)>0):
@@ -87,14 +93,11 @@ class Cyclist:
             if(self.actual_path == self.structure.path and self.actual_edge_id==self.structure.end_edge.getID()):
                 self.exit_struct()
 
-            self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
-            self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
-
         else:
             self.alive = False
             self.finish_step=step
             if(new_scenario):
-                tab_scenario[int(self.id)]["end_step"]=step
+                tab_scenario[int(self.id)]["finish_step"]=step
                 tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
                 tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
 
@@ -140,6 +143,7 @@ class Cyclist:
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
         self.struct_crossed = True
+        self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
 
     def cancel_struct_candidature(self):
         if(self.id in self.structure.id_cyclists_waiting):
@@ -167,6 +171,8 @@ class Cyclist:
         if(self.module_traci.vehicle.getNextStops(self.id)):
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
         self.step_cancel_struct_candidature = -1
+
+        self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
 
 
     def set_max_speed(self, max_speed):
