@@ -66,7 +66,8 @@ class Cyclist:
 
         if(self.id in self.module_traci.vehicle.getIDList()):
             self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
-            self.waiting_time = self.module_traci.vehicle.getAccumulatedWaitingTime(self.id)
+            if(self.module_traci.vehicle.getSpeed(self.id)<0.5):
+                self.waiting_time += 1
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
 
             if(self.actual_edge_id==self.original_path["path"][-1]):
@@ -100,6 +101,8 @@ class Cyclist:
                 tab_scenario[int(self.id)]["finish_step"]=step
                 tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
                 tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
+            if(self.canceled_candidature):
+                print(self.id, tab_scenario[int(self.id)]["finish_step"], self.finish_step, tab_scenario[int(self.id)]["finish_step"]-self.finish_step)
 
 
 

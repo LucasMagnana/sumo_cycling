@@ -6,6 +6,8 @@ import osmnx as ox
 import copy
 import matplotlib.pyplot as plt
 
+#4711
+
 from Cyclist import Cyclist
 from Structure import Structure
 
@@ -15,7 +17,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo"
+sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--no-warnings']
 
 
@@ -116,7 +118,7 @@ else:
 
 
 structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci,\
-open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.45)
+open=new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.65)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -195,6 +197,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     step += 1
 
 if(new_scenario):
+    print("WARNING: Saving scenario...")
     with open('scenario.tab', 'wb') as outfile:
         pickle.dump(tab_scenario, outfile)
 
@@ -215,20 +218,22 @@ tab_all_diff_arrival_time=[]
 if(not new_scenario):
     for i in dict_cyclists_arrived:
         c = dict_cyclists_arrived[i]
-        tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
         if(structure.open):
             if(c.canceled_candidature):
+                tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_finish_step[2].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_waiting_time[2].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                 tab_diff_distance_travelled[2].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
-            elif(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
-                tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
-            elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
-                tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+            elif(c.struct_crossed):
+                if(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
+                    tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                    tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                    tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
+                    tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                    tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                    tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                
 
 
     tab_mean_diff_arrival_time = []

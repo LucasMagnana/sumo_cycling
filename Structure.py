@@ -70,7 +70,7 @@ class Structure:
             if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+150
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+1
                 
 
 
