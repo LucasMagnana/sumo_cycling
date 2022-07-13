@@ -94,6 +94,13 @@ class Cyclist:
             if(self.actual_path == self.structure.path and self.actual_edge_id==self.structure.end_edge.getID()):
                 self.exit_struct()
 
+            if(self.canceled_candidature):
+                self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
+            if(self.struct_crossed):
+                self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
+            if(self.struct_candidate):
+                self.module_traci.vehicle.highlight(self.id)
+
         else:
             self.alive = False
             self.finish_step=step
@@ -101,9 +108,9 @@ class Cyclist:
                 tab_scenario[int(self.id)]["finish_step"]=step
                 tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
                 tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
-            if(self.canceled_candidature):
+            '''if(self.canceled_candidature):
                 print(self.id, tab_scenario[int(self.id)]["finish_step"], self.finish_step, tab_scenario[int(self.id)]["finish_step"]-self.finish_step)
-
+            '''
 
 
     def calculate_ETA(self, step, path=None):
@@ -146,7 +153,6 @@ class Cyclist:
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
         self.struct_crossed = True
-        self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
 
     def cancel_struct_candidature(self):
         if(self.id in self.structure.id_cyclists_waiting):
@@ -175,7 +181,6 @@ class Cyclist:
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
         self.step_cancel_struct_candidature = -1
 
-        self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
 
 
     def set_max_speed(self, max_speed):

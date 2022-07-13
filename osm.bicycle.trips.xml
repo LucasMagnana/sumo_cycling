@@ -1,15 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2022-05-25 15:40:04 by Eclipse SUMO duarouter Version 1.13.0
+<!-- generated on 2022-07-13 14:22:29.873724 by osmWebWizard.py UNKNOWN
+<configuration>
+    <end value="3600"/>
+    <fringe-factor value="2.0"/>
+    <fringe-start-attributes value="departSpeed=&quot;max&quot;"/>
+    <max-distance value="8000.0"/>
+    <net-file value="/home/lucas/2022-07-13-14-22-08/osm.net.xml"/>
+    <period value="14.01289326309137"/>
+    <route-file value="/home/lucas/2022-07-13-14-22-08/osm.bicycle.rou.xml"/>
+    <trip-attributes value="departLane=&quot;best&quot;"/>
+    <output-trip-file value="/home/lucas/2022-07-13-14-22-08/osm.bicycle.trips.xml"/>
+    <prefix value="bike"/>
+    <validate value="True"/>
+    <vclass value="bicycle"/>
+    <vehicle-class value="bicycle"/>
+</configuration>
+-->
+
+<!-- generated on 2022-07-13 14:22:29 by Eclipse SUMO duarouter Version 1.14.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
 
     <input>
-        <net-file value="/home/lucas/2022-05-25-15-39-41/osm.net.xml"/>
-        <route-files value="/home/lucas/2022-05-25-15-39-41/osm.bicycle.trips.xml"/>
+        <net-file value="/home/lucas/2022-07-13-14-22-08/osm.net.xml"/>
+        <route-files value="/home/lucas/2022-07-13-14-22-08/osm.bicycle.trips.xml"/>
     </input>
 
     <output>
-        <output-file value="/home/lucas/2022-05-25-15-39-41/osm.bicycle.trips.xml.tmp"/>
+        <output-file value="/home/lucas/2022-07-13-14-22-08/osm.bicycle.trips.xml.tmp"/>
+        <alternatives-output value="NUL"/>
         <write-trips value="true"/>
     </output>
 
@@ -28,5 +47,5 @@
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <vType id="bike_bicycle" vClass="bicycle" sigma="0" speedDev="0"/>
+    <vType id="bike_bicycle" vClass="bicycle"/>
 </routes>

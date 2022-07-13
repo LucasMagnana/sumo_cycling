@@ -1,7 +1,7 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -15,6 +15,7 @@ class Structure:
 
         self.dict_cyclists = dict_cyclists
         self.dict_cyclists_deleted = dict_cyclists_deleted
+        self.dict_cyclists_arrived = dict_cyclists_arrived
 
         self.module_traci = traci
 
@@ -63,14 +64,19 @@ class Structure:
 
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
             if(i not in self.dict_cyclists):
-                self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
+                if i in self.dict_cyclists_deleted:
+                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
+                    del self.dict_cyclists_deleted[i]
+                else:
+                    self.dict_cyclists[i] = self.dict_cyclists_arrived[i]
+                    del self.dict_cyclists_arrived[i]
                 self.dict_cyclists[i].alive = True
-                del self.dict_cyclists_deleted[i]
+                
                 print(i, "removed from dict while still in simu")
             if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+1
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+150
                 
 
 
@@ -116,6 +122,7 @@ class Structure:
                         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
+        print(self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
         if(len(self.id_cyclists_crossing_struct)==0):
             self.activated = False
 

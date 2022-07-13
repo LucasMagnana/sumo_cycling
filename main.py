@@ -117,8 +117,8 @@ else:
         tab_scenario = pickle.load(infile)
 
 
-structure = Structure("237920408#0", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, traci,\
-open=new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.65)
+structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
+open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.65)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -134,10 +134,11 @@ while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
     e1 = randint(0, len(edges)-1)
     e2 = randint(0, len(edges)-1)
     key_dict = edges[e1].getID()+";"+edges[e2].getID()
-    if(key_dict in dict_shortest_path):
-        path = dict_shortest_path[key_dict]
-    else:
-        path = None
+    while(key_dict not in dict_shortest_path):
+        e1 = randint(0, len(edges)-1)
+        e2 = randint(0, len(edges)-1)
+        key_dict = edges[e1].getID()+";"+edges[e2].getID()
+    path = dict_shortest_path[key_dict]
     if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
         id+=1
 
@@ -150,10 +151,11 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                 e1 = randint(0, len(edges)-1)
                 e2 = randint(0, len(edges)-1)
                 key_dict = edges[e1].getID()+";"+edges[e2].getID()
-                if(key_dict in dict_shortest_path):
-                    path = dict_shortest_path[key_dict]
-                else:
-                    path = None
+                while(key_dict not in dict_shortest_path):
+                    e1 = randint(0, len(edges)-1)
+                    e2 = randint(0, len(edges)-1)
+                    key_dict = edges[e1].getID()+";"+edges[e2].getID()
+                path = dict_shortest_path[key_dict]
 
                 if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
                     id+=1
@@ -192,7 +194,8 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
 
     structure.step(step)
 
-    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start, {} in dict_deleted.".format(step, len(traci.vehicle.getIDList()), id, len(dict_cyclists_deleted)), end="")
+    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start, {} in dict_deleted."\
+    .format(step, len(traci.vehicle.getIDList()), id, len(dict_cyclists_deleted)), end="")
 
     step += 1
 
