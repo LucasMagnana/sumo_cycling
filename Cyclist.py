@@ -38,11 +38,11 @@ class Cyclist:
 
         self.highlited = False
 
-        if(finish_step == -1):
-            self.estimated_travel_time=path["length"]/self.max_speed+path["estimated_waiting_time"]
-            self.estimated_finish_step = step+self.estimated_travel_time
-        else:
-            self.estimated_finish_step = finish_step
+
+        self.estimated_travel_time=path["length"]/self.max_speed+path["estimated_waiting_time"]
+        self.estimated_finish_step = step+self.estimated_travel_time
+
+        #self.estimated_finish_step = finish_step
 
 
         self.actual_edge_id = self.actual_path["path"][0]
@@ -104,13 +104,14 @@ class Cyclist:
         else:
             self.alive = False
             self.finish_step=step
+            if(self.id in self.structure.id_cyclists_crossing_struct):
+                self.structure.id_cyclists_crossing_struct.remove(self.id)
+            if(self.id in self.structure.id_cyclists_waiting):
+                self.structure.id_cyclists_waiting.remove(self.id)
             if(new_scenario):
                 tab_scenario[int(self.id)]["finish_step"]=step
                 tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
                 tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
-            '''if(self.canceled_candidature):
-                print(self.id, tab_scenario[int(self.id)]["finish_step"], self.finish_step, tab_scenario[int(self.id)]["finish_step"]-self.finish_step)
-            '''
 
 
     def calculate_ETA(self, step, path=None):

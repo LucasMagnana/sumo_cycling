@@ -82,7 +82,7 @@ class Structure:
 
                     #print(i, "waiting")
 
-        if(len(self.id_cyclists_waiting)>=self.min_group_size and not self.activated):
+        if(len(self.id_cyclists_waiting)>=self.min_group_size):
             self.activated = True
             min_max_speed = 100
             for i in self.id_cyclists_waiting:
@@ -103,7 +103,7 @@ class Structure:
             for i in self.id_cyclists_crossing_struct:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
 
-        if(self.activated):
+        if(len(self.id_cyclists_crossing_struct)>0):
 
             if(set(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())) & set(self.id_cyclists_crossing_struct)):
                 for i in self.id_cyclists_waiting:
@@ -121,10 +121,6 @@ class Structure:
                     else:
                         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
-
-        print(self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
-        if(len(self.id_cyclists_crossing_struct)==0):
-            self.activated = False
 
     def check_for_candidates(self, step):
         list_id_candidates = []

@@ -6,8 +6,6 @@ import osmnx as ox
 import copy
 import matplotlib.pyplot as plt
 
-#4711
-
 from Cyclist import Cyclist
 from Structure import Structure
 
@@ -17,7 +15,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--no-warnings']
 
 
@@ -117,8 +115,8 @@ else:
         tab_scenario = pickle.load(infile)
 
 
-structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
-open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=1.65)
+structure = Structure("237920408#2", "207728319#6", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
+open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=0.85)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -126,8 +124,8 @@ else:
     print("WARNING : Structure is closed...")
 
 
-num_cyclists = 5000
-max_num_cyclists_same_time = 150
+num_cyclists = 2500
+max_num_cyclists_same_time = 100
 
 
 while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
@@ -212,30 +210,40 @@ for i in dict_cyclists_deleted:
 
 print("data number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
-tab_diff_finish_step = [[],[],[]]
-tab_diff_waiting_time = [[],[],[]]
-tab_diff_distance_travelled = [[],[],[]]
+tab_diff_finish_step = [[],[],[], []]
+tab_diff_waiting_time = [[],[],[], []]
+tab_diff_distance_travelled = [[],[],[], []]
+tab_num_type_cyclists = [0, 0, 0, 0]
 
 tab_all_diff_arrival_time=[]
 
 if(not new_scenario):
     for i in dict_cyclists_arrived:
         c = dict_cyclists_arrived[i]
+        tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
         if(structure.open):
             if(c.canceled_candidature):
-                tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_finish_step[2].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_waiting_time[2].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                 tab_diff_distance_travelled[2].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_num_type_cyclists[2]+=1
             elif(c.struct_crossed):
                 if(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
                     tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                     tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                     tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                    tab_num_type_cyclists[1]+=1
                 elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
                     tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                     tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                     tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                    tab_num_type_cyclists[0]+=1
+            else:
+                tab_diff_finish_step[3].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[3].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[3].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_num_type_cyclists[3]+=1
+
                 
 
 
@@ -275,7 +283,7 @@ if(not new_scenario):
 
     if(structure.open):
 
-        labels=["Gagnants", "Perdants", "Annulés"]
+        labels=["Gagnants", "Perdants", "Annulés", "Reste"]
 
         plt.clf()
         fig1, ax1 = plt.subplots()
@@ -294,3 +302,9 @@ if(not new_scenario):
         ax1.set_title('')
         ax1.bar(range(len(tab_mean_diff_distance_travelled)), tab_mean_diff_distance_travelled, tick_label=labels)
         plt.savefig("images/mean_distance_travelled.png")
+
+        plt.clf()
+        fig1, ax1 = plt.subplots()
+        ax1.set_title('')
+        ax1.bar(range(len(tab_num_type_cyclists)), tab_num_type_cyclists, tick_label=labels)
+        plt.savefig("images/cyclists_type.png")
