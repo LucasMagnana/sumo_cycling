@@ -15,7 +15,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo"
+sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--no-warnings']
 
 
@@ -115,7 +115,7 @@ else:
         tab_scenario = pickle.load(infile)
 
 
-structure = Structure("237920408#2", "207728319#6", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
+structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
 open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=0.85)
 
 if(structure.open):
@@ -208,7 +208,7 @@ for i in dict_cyclists_deleted:
     dict_cyclists_arrived[i]=dict_cyclists_deleted[i]
 
 
-print("data number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 tab_diff_finish_step = [[],[],[], []]
 tab_diff_waiting_time = [[],[],[], []]

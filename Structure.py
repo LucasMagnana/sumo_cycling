@@ -112,15 +112,15 @@ class Structure:
                     self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)
                     self.id_cyclists_waiting.remove(i)
             
-            for e in self.path["path"]:
-                tls = self.net.getEdge(e).getTLS()
-                if(tls):
-                    if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)):
-                        if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
-                            self.module_traci.trafficlight.setProgram(tls.getID(), 1)
-                    else:
-                        if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
-                            self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+        for e in self.path["path"]:
+            tls = self.net.getEdge(e).getTLS()
+            if(tls):
+                if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)):
+                    if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
+                        self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+                else:
+                    if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
+                        self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
     def check_for_candidates(self, step):
         list_id_candidates = []
