@@ -247,7 +247,7 @@ if(not new_scenario):
                 
 
 
-    tab_mean_diff_arrival_time = []
+    '''tab_mean_diff_arrival_time = []
     for i in range(len(tab_diff_finish_step)):
         if(len(tab_diff_finish_step[i])==0):
             tab_mean_diff_arrival_time.append(0)
@@ -267,7 +267,7 @@ if(not new_scenario):
         if(len(tab_diff_distance_travelled[i])==0):
             tab_mean_diff_distance_travelled.append(0)
         else:
-            tab_mean_diff_distance_travelled.append(sum(tab_diff_distance_travelled[i])/len(tab_diff_distance_travelled[i]))
+            tab_mean_diff_distance_travelled.append(sum(tab_diff_distance_travelled[i])/len(tab_diff_distance_travelled[i]))'''
 
     plt.clf()
     fig1, ax1 = plt.subplots()
@@ -288,19 +288,22 @@ if(not new_scenario):
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_arrival_time)), tab_mean_diff_arrival_time, tick_label=labels)
+        #ax1.bar(range(len(tab_mean_diff_arrival_time)), tab_mean_diff_arrival_time, tick_label=labels)
+        ax1.boxplot(tab_diff_finish_step, labels=labels)
         plt.savefig("images/mean_time_diff.png")
 
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_waiting_time)), tab_mean_diff_waiting_time, tick_label=labels)
+        #ax1.bar(range(len(tab_mean_diff_waiting_time)), tab_mean_diff_waiting_time, tick_label=labels)
+        ax1.boxplot(tab_diff_waiting_time, labels=labels)
         plt.savefig("images/mean_waiting_time.png")
 
         plt.clf()
         fig1, ax1 = plt.subplots()
         ax1.set_title('')
-        ax1.bar(range(len(tab_mean_diff_distance_travelled)), tab_mean_diff_distance_travelled, tick_label=labels)
+        #ax1.bar(range(len(tab_mean_diff_distance_travelled)), tab_mean_diff_distance_travelled, tick_label=labels)
+        ax1.boxplot(tab_diff_distance_travelled, labels=labels)
         plt.savefig("images/mean_distance_travelled.png")
 
         plt.clf()
