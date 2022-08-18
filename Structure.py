@@ -1,7 +1,9 @@
 import threading
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
+    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
+
         for e in edges:
             id = e.getID()
             if(id == start_edge):
@@ -21,6 +23,9 @@ class Structure:
 
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
+
+        self.model = model
+        self.dict_edges_index = dict_edges_index
 
         for e in self.path["path"]:
             tls = net.getEdge(e).getTLS()
@@ -56,9 +61,11 @@ class Structure:
         self.time_travel_multiplier = time_travel_multiplier
 
 
-    def step(self, step):
+    def step(self, step, edges):
+        #print(step, self.id_cyclists_waiting)
+
         if(self.open and step%self.step_gap==0):
-            self.check_for_candidates(step)
+            self.check_for_candidates(step, edges)
 
 
 
@@ -73,7 +80,7 @@ class Structure:
                 self.dict_cyclists[i].alive = True
                 
                 print(i, "removed from dict while still in simu")
-            if(self.module_traci.vehicle.getSpeed(i)==0 and i not in self.id_cyclists_waiting\
+            if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
                 self.dict_cyclists[i].step_cancel_struct_candidature = step+150
@@ -103,6 +110,8 @@ class Structure:
             for i in self.id_cyclists_crossing_struct:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
 
+            print("activated at step", step)
+
         if(len(self.id_cyclists_crossing_struct)>0):
 
             if(set(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())) & set(self.id_cyclists_crossing_struct)):
@@ -122,23 +131,29 @@ class Structure:
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
-    def check_for_candidates(self, step):
+    def check_for_candidates(self, step, edges):
         list_id_candidates = []
+
+        if(self.model != None and self.dict_edges_index != None):
+            edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) for e in edges]
         for i in self.dict_cyclists:
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
-                if(self.dict_cyclists[i].actual_edge_id[0] != ':'):
-                    key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
-                    if(key_path_to_struct in self.dict_shortest_path):
-                        travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
-                        self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
-                        travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
-                        travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
-                        self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                        step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
+                if(self.dict_cyclists[i].actual_edge_id[0] != ":"):
+                    if(self.model != None and self.dict_edges_index != None):
+                        out = self.model(edges_occupation, [self.dict_edges_index[self.dict_cyclists[i].actual_edge_id]])
+                    else:
+                            key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
+                            if(key_path_to_struct in self.dict_shortest_path):
+                                travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
+                                self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
+                                travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
+                                travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
+                                self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
+                                step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
 
-                        if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
-                            list_id_candidates.append(i)
+                                if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
+                                    list_id_candidates.append(i)
 
         if(len(list_id_candidates)>=self.min_group_size*1):
             for i in list_id_candidates:

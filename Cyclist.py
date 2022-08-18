@@ -28,7 +28,9 @@ class Cyclist:
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
         
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
-        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
+        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id)) 
+
+        self.module_traci.vehicle.setActionStepLength(self.id, 1)
 
         self.dict_shortest_path = dict_shortest_path 
 
