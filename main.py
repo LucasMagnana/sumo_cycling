@@ -10,16 +10,35 @@ from Structure import Structure
 from graphs import *
 from Model import Model
 
+
+
+load_shortest_paths = False
+
+new_scenario = False
+
+open_struct=not new_scenario
+min_group_size=5
+step_gap=15
+time_travel_multiplier=0
+
+use_model = False
+save_model = False
+
+
+step_length = 1
+
+
+
+
+
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
     sys.path.append(tools)
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-step_length = 1
-
 sumoBinary = "/usr/bin/sumo"
-sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length)]#, '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci
@@ -74,13 +93,10 @@ net = sumolib.net.readNet('osm.net.xml')
 edges = net.getEdges()
 
 dict_cyclists = {}
-dict_cyclists_deleted = {}
 dict_cyclists_arrived = {}
 
 id=0
 step=0
-
-load_shortest_paths = False
 
 if(load_shortest_paths):
     num_step = len(edges)**2
@@ -106,9 +122,6 @@ else:
 
 
 
-
-new_scenario = False
-
 if(new_scenario):
     print("WARNING : Creating a new scenario...")
     tab_scenario=[]
@@ -121,10 +134,18 @@ dict_edges_index = {}
 for i, e in enumerate(edges) :
     dict_edges_index[e.getID()] = i
 
-model = Model(len(edges), 256, 128)
 
-structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
-dict_edges_index, model,open=not new_scenario, min_group_size=5, step_gap=15, time_travel_multiplier=0.85)
+if(use_model == True):
+    model = Model(len(edges), 256, 128)
+    if(os.path.exists("models/model.pt")):
+        model.load_state_dict(torch.load("models/model.pt"))
+        model.eval()
+else:
+    model = None
+
+
+structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
+open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -179,30 +200,25 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
 
     traci.simulationStep() 
 
-    for i in copy.deepcopy(list(dict_cyclists_deleted.keys())):
-        if(i in traci.vehicle.getIDList()):
-            dict_cyclists[i] = dict_cyclists_deleted[i]
-            del dict_cyclists_deleted[i]
-            dict_cyclists[i].alive=True
-        elif(step-dict_cyclists_deleted[i].finish_step>100):
-            dict_cyclists_arrived[i] = dict_cyclists_deleted[i]
-            del dict_cyclists_deleted[i]
-
-
     for i in copy.deepcopy(list(dict_cyclists.keys())):
         dict_cyclists[i].step(step, tab_scenario, new_scenario)
         if(not dict_cyclists[i].alive):
-            if(not dict_cyclists[i].arrived):
-                dict_cyclists_deleted[i] = dict_cyclists[i]
-            else:
-                dict_cyclists_arrived[i] = dict_cyclists[i]
+            dict_cyclists_arrived[i] = dict_cyclists[i]
+            if(i in structure.dict_model_output):
+                if(dict_cyclists[i].finish_step<tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
+                    target = torch.Tensor([1])
+                else:
+                    target = torch.Tensor([0])
+                structure.list_output_to_learn.append(structure.dict_model_output[i])
+                structure.list_target.append(target)
+                del structure.dict_model_output[i]
             del dict_cyclists[i]
 
     if(step%1==0):
         structure.step(step, edges)
 
-    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start, {} in dict_deleted."\
-    .format(step, len(traci.vehicle.getIDList()), id, len(dict_cyclists_deleted)), end="")
+    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start."\
+    .format(step, len(traci.vehicle.getIDList()), id), end="")
 
     step += step_length
 
@@ -213,8 +229,10 @@ if(new_scenario):
 
 traci.close()
 
-for i in dict_cyclists_deleted:
-    dict_cyclists_arrived[i]=dict_cyclists_deleted[i]
+if(model != None and save_model):
+    if(not os.path.exists("models")):
+        os.makedirs("models")
+    torch.save(model.state_dict(), "models/model.pt")
 
 
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)

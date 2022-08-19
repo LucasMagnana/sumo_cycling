@@ -1,7 +1,8 @@
 import threading
+import torch
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, dict_cyclists_deleted, dict_cyclists_arrived, traci,\
+    def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci,\
     dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
 
         for e in edges:
@@ -16,8 +17,6 @@ class Structure:
         self.path = self.dict_shortest_path[self.start_edge.getID()+";"+self.end_edge.getID()]
 
         self.dict_cyclists = dict_cyclists
-        self.dict_cyclists_deleted = dict_cyclists_deleted
-        self.dict_cyclists_arrived = dict_cyclists_arrived
 
         self.module_traci = traci
 
@@ -25,7 +24,12 @@ class Structure:
         self.id_cyclists_waiting = []
 
         self.model = model
+        self.loss = torch.nn.BCELoss()
         self.dict_edges_index = dict_edges_index
+        self.dict_model_output = {}
+        self.list_output_to_learn = []
+        self.list_target = []
+
 
         for e in self.path["path"]:
             tls = net.getEdge(e).getTLS()
@@ -64,22 +68,21 @@ class Structure:
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting)
 
+        if(len(self.list_output_to_learn)>=256):
+            tens_output = torch.FloatTensor(self.list_output_to_learn)
+            tens_target = torch.FloatTensor(self.list_target)
+            l = self.loss(tens_output, tens_target)
+            l.backward()
+            self.list_output_to_learn = []
+            self.list_target = []
+
+
         if(self.open and step%self.step_gap==0):
-            self.check_for_candidates(step, edges)
+            self.check_for_candidates(step, edges)           
 
 
 
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-            if(i not in self.dict_cyclists):
-                if i in self.dict_cyclists_deleted:
-                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
-                    del self.dict_cyclists_deleted[i]
-                else:
-                    self.dict_cyclists[i] = self.dict_cyclists_arrived[i]
-                    del self.dict_cyclists_arrived[i]
-                self.dict_cyclists[i].alive = True
-                
-                print(i, "removed from dict while still in simu")
             if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
@@ -93,12 +96,6 @@ class Structure:
             self.activated = True
             min_max_speed = 100
             for i in self.id_cyclists_waiting:
-                if(i not in self.dict_cyclists):
-                    self.dict_cyclists[i] = self.dict_cyclists_deleted[i]
-                    self.dict_cyclists[i].alive = True
-                    del self.dict_cyclists_deleted[i]
-                    print(i, "bugged (disapperead from id list while waiting)")
-
                 self.dict_cyclists[i].cross_struct()
                 if(self.dict_cyclists[i].max_speed < min_max_speed):
                     min_max_speed = self.dict_cyclists[i].max_speed
@@ -110,7 +107,7 @@ class Structure:
             for i in self.id_cyclists_crossing_struct:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
 
-            print("activated at step", step)
+            #print("activated at step", step)
 
         if(len(self.id_cyclists_crossing_struct)>0):
 
@@ -135,13 +132,18 @@ class Structure:
         list_id_candidates = []
 
         if(self.model != None and self.dict_edges_index != None):
-            edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) for e in edges]
+            edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID()))+1 for e in edges]
         for i in self.dict_cyclists:
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ":"):
                     if(self.model != None and self.dict_edges_index != None):
-                        out = self.model(edges_occupation, [self.dict_edges_index[self.dict_cyclists[i].actual_edge_id]])
+                        tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
+                        tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id]], dtype=torch.float)
+                        out = self.model(tens_edges_occupation, tens_actual_edge)
+                        if(out >= 0.5):
+                            #self.dict_model_output[i] = out
+                            self.dict_cyclists[i].struct_candidate=True
                     else:
                             key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                             if(key_path_to_struct in self.dict_shortest_path):
@@ -155,7 +157,7 @@ class Structure:
                                 if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                                     list_id_candidates.append(i)
 
-        if(len(list_id_candidates)>=self.min_group_size*1):
+        if(self.model == None and len(list_id_candidates)>=self.min_group_size*1):
             for i in list_id_candidates:
                 self.dict_cyclists[i].struct_candidate=True
 

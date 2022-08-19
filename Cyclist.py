@@ -103,7 +103,7 @@ class Cyclist:
             if(self.struct_candidate):
                 self.module_traci.vehicle.highlight(self.id)
 
-        else:
+        elif(self.id in self.module_traci.simulation.getArrivedIDList()):
             self.alive = False
             self.finish_step=step
             if(self.id in self.structure.id_cyclists_crossing_struct):

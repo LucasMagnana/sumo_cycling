@@ -13,9 +13,7 @@ class Model(nn.Module):
         self.int = nn.Linear(size_hidden_1+1, size_hidden_2)
         self.out = nn.Linear(size_hidden_2, 1)
 
-    def forward(self, edges_occupation, actual_edge):
-        tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
-        tens_actual_edge = torch.tensor(actual_edge, dtype=torch.float)
+    def forward(self, tens_edges_occupation, tens_actual_edge):
         out = nn.functional.relu(self.inp(tens_edges_occupation))
         out = nn.functional.relu(self.int(torch.cat((out, tens_actual_edge))))
         return torch.sigmoid(self.out(out))

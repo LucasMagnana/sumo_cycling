@@ -86,3 +86,11 @@ def plot_and_save_bar(data, file_title, labels=None):
     ax1.set_title('')
     ax1.bar(range(len(data)), data, tick_label=labels)
     plt.savefig("images/"+file_title+".png")
+
+
+def plot_and_save_line(data, file_title, labels=None):
+    plt.clf()
+    fig1, ax1 = plt.subplots()
+    ax1.set_title('')
+    ax1.bar(range(len(data)), data, tick_label=labels)
+    plt.savefig("images/"+file_title+".png")
