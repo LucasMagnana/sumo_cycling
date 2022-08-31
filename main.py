@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 import osmnx as ox
 import copy
+import torch
 
 from Cyclist import Cyclist
 from Structure import Structure
@@ -20,10 +21,10 @@ edge_separation = True
 open_struct=not new_scenario
 min_group_size=5
 step_gap=15
-time_travel_multiplier=0.9
+time_travel_multiplier=0.85
 
-use_model = False
-save_model = False
+use_model = True
+save_model = True
 
 
 step_length = 1
@@ -41,7 +42,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
@@ -148,6 +149,8 @@ if(load_shortest_paths):
             print("\rStep: {}/{}, {}".format(i, num_step, len(dict_shortest_path)), end="")
             if(e1 != e2):
                 path = net.getShortestPath(e1, e2, vClass='bicycle')
+                if(path[0] == None):
+                    path = net.getOptimalPath(e1, e2, vClass='bicycle')
                 if(path[0] != None):
                     path = [e.getID() for e in path[0]]
                     dict_shortest_path[e1.getID()+";"+e2.getID()] = {"path": path, "length":sumolib.route.getLength(net, path),\
@@ -160,6 +163,10 @@ if(load_shortest_paths):
 else:
     with open('sp.dict', 'rb') as infile:
         dict_shortest_path = pickle.load(infile)
+
+
+print(len(edges)**2-len(edges), len(dict_shortest_path))
+
 
 
 
