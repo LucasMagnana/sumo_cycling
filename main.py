@@ -15,17 +15,21 @@ from Model import Model
 load_shortest_paths = False
 
 new_scenario = False
+edge_separation = True
 
 open_struct=not new_scenario
 min_group_size=5
 step_gap=15
-time_travel_multiplier=0
+time_travel_multiplier=0.9
 
 use_model = False
 save_model = False
 
 
 step_length = 1
+
+num_cyclists = 2500
+max_num_cyclists_same_time = 100
 
 
 
@@ -37,7 +41,7 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo"
+sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
@@ -75,7 +79,7 @@ def calculate_estimated_waiting_time(path, net):
 
 
 def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab_scenario=None, max_speed=None, finish_step=-1):
-    if(path != None and len(path)>2 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
+    if(path != None and len(path["path"])>10 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
         if(max_speed==None):
             max_speed = np.random.normal(15, 3)
         c = Cyclist(id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, finish_step=finish_step)
@@ -87,10 +91,47 @@ def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab
     return False
 
 
+def separate_edges(edges):
+    leftmost_edge_x = 0
+    rightmost_edge_x = sys.float_info.max
+    dict_edges = {}
+    tab_left_edges = []
+    tab_right_edges = []
+    for e in edges:
+        to_node_coord = e.getToNode().getCoord()
+        from_node_coord = e.getFromNode().getCoord()
+        if(from_node_coord[0] < to_node_coord[0]):
+            e_coord = (from_node_coord[0]+(to_node_coord[0]-from_node_coord[0])/2, from_node_coord[1]+(to_node_coord[1]-from_node_coord[1])/2)
+        else:
+            e_coord = (to_node_coord[0]+(from_node_coord[0]-to_node_coord[0])/2, to_node_coord[1]+(from_node_coord[1]-to_node_coord[1])/2)
+        dict_edges[e_coord]=e
+        if(e_coord[0] > leftmost_edge_x):
+            leftmost_edge_x = e_coord[0]
+        if(e_coord[0] < rightmost_edge_x):
+            rightmost_edge_x = e_coord[0]
+    middle_x = leftmost_edge_x+(rightmost_edge_x-leftmost_edge_x)/2
+
+    for e_coord in dict_edges:
+        if(e_coord[0]<=middle_x):
+            tab_left_edges.append(dict_edges[e_coord])
+        else:
+            tab_right_edges.append(dict_edges[e_coord])
+
+    return tab_left_edges, tab_right_edges
+    
+
+
+
+
 traci.start(sumoCmd)
 
 net = sumolib.net.readNet('osm.net.xml')
 edges = net.getEdges()
+
+if(edge_separation):
+    tab_left_edges, tab_right_edges = separate_edges(edges)
+
+
 
 dict_cyclists = {}
 dict_cyclists_arrived = {}
@@ -153,18 +194,24 @@ else:
     print("WARNING : Structure is closed...")
 
 
-num_cyclists = 2500
-max_num_cyclists_same_time = 100
-
 
 while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
-    e1 = randint(0, len(edges)-1)
-    e2 = randint(0, len(edges)-1)
-    key_dict = edges[e1].getID()+";"+edges[e2].getID()
-    while(key_dict not in dict_shortest_path):
+    if(edge_separation):
+        e1 = randint(0, len(tab_right_edges)-1)
+        e2 = randint(0, len(tab_left_edges)-1)
+        key_dict = tab_right_edges[e1].getID()+";"+tab_left_edges[e2].getID()
+        while(key_dict not in dict_shortest_path):
+            e1 = randint(0, len(tab_right_edges)-1)
+            e2 = randint(0, len(tab_left_edges)-1)
+            key_dict = tab_right_edges[e1].getID()+";"+tab_left_edges[e2].getID()
+    else:
         e1 = randint(0, len(edges)-1)
         e2 = randint(0, len(edges)-1)
         key_dict = edges[e1].getID()+";"+edges[e2].getID()
+        while(key_dict not in dict_shortest_path):
+            e1 = randint(0, len(edges)-1)
+            e2 = randint(0, len(edges)-1)
+            key_dict = edges[e1].getID()+";"+edges[e2].getID()
     path = dict_shortest_path[key_dict]
     if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
         id+=1
@@ -175,13 +222,22 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     if(new_scenario):
         if(id<=num_cyclists):
             if(len(dict_cyclists)<max_num_cyclists_same_time):
-                e1 = randint(0, len(edges)-1)
-                e2 = randint(0, len(edges)-1)
-                key_dict = edges[e1].getID()+";"+edges[e2].getID()
-                while(key_dict not in dict_shortest_path):
+                if(edge_separation):
+                    e1 = randint(0, len(tab_right_edges)-1)
+                    e2 = randint(0, len(tab_left_edges)-1)
+                    key_dict = tab_right_edges[e1].getID()+";"+tab_left_edges[e2].getID()
+                    while(key_dict not in dict_shortest_path):
+                        e1 = randint(0, len(tab_right_edges)-1)
+                        e2 = randint(0, len(tab_left_edges)-1)
+                        key_dict = tab_right_edges[e1].getID()+";"+tab_left_edges[e2].getID()
+                else:
                     e1 = randint(0, len(edges)-1)
                     e2 = randint(0, len(edges)-1)
                     key_dict = edges[e1].getID()+";"+edges[e2].getID()
+                    while(key_dict not in dict_shortest_path):
+                        e1 = randint(0, len(edges)-1)
+                        e2 = randint(0, len(edges)-1)
+                        key_dict = edges[e1].getID()+";"+edges[e2].getID()
                 path = dict_shortest_path[key_dict]
 
                 if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
@@ -190,7 +246,10 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
         while(id<=num_cyclists and step >= tab_scenario[id]["start_step"]):
             e1=tab_scenario[id]["start_edge"]
             e2=tab_scenario[id]["end_edge"]
-            key_dict = edges[e1].getID()+";"+edges[e2].getID()
+            if(edge_separation):
+                key_dict = tab_right_edges[e1].getID()+";"+tab_left_edges[e2].getID()
+            else:
+                key_dict = edges[e1].getID()+";"+edges[e2].getID()
             path = dict_shortest_path[key_dict]
             finish_step=-1
             if("finish_step" in tab_scenario[id]):
