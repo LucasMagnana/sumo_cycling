@@ -15,5 +15,5 @@ class Model(nn.Module):
 
     def forward(self, tens_edges_occupation, tens_actual_edge):
         out = nn.functional.relu(self.inp(tens_edges_occupation))
-        out = nn.functional.relu(self.int(torch.cat((out, tens_actual_edge))))
+        out = nn.functional.relu(self.int(torch.cat((out, tens_actual_edge), dim=-1)))
         return torch.sigmoid(self.out(out))

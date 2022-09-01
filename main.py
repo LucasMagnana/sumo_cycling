@@ -21,7 +21,7 @@ edge_separation = True
 open_struct=not new_scenario
 min_group_size=5
 step_gap=15
-time_travel_multiplier=0.85
+time_travel_multiplier=0
 
 use_model = True
 save_model = True
@@ -165,8 +165,6 @@ else:
         dict_shortest_path = pickle.load(infile)
 
 
-print(len(edges)**2-len(edges), len(dict_shortest_path))
-
 
 
 
@@ -185,9 +183,12 @@ for i, e in enumerate(edges) :
 
 if(use_model == True):
     model = Model(len(edges), 256, 128)
+    print("WARNING : Using neural network...", end="")
     if(os.path.exists("models/model.pt")):
         model.load_state_dict(torch.load("models/model.pt"))
         model.eval()
+        print("Loading it.", end="")
+    print("")
 else:
     model = None
 
@@ -270,14 +271,14 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
         dict_cyclists[i].step(step, tab_scenario, new_scenario)
         if(not dict_cyclists[i].alive):
             dict_cyclists_arrived[i] = dict_cyclists[i]
-            if(i in structure.dict_model_output):
+            if(i in structure.dict_model_input):
                 if(dict_cyclists[i].finish_step<tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                     target = torch.Tensor([1])
                 else:
                     target = torch.Tensor([0])
-                structure.list_output_to_learn.append(structure.dict_model_output[i])
+                structure.list_input_to_learn.append(structure.dict_model_input[i])
                 structure.list_target.append(target)
-                del structure.dict_model_output[i]
+                del structure.dict_model_input[i]
             del dict_cyclists[i]
 
     if(step%1==0):
@@ -298,6 +299,7 @@ traci.close()
 if(model != None and save_model):
     if(not os.path.exists("models")):
         os.makedirs("models")
+    print("WARNING: Saving model...")
     torch.save(model.state_dict(), "models/model.pt")
 
 

@@ -24,10 +24,13 @@ class Structure:
         self.id_cyclists_waiting = []
 
         self.model = model
+        if(self.model != None):
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+
         self.loss = torch.nn.BCELoss()
         self.dict_edges_index = dict_edges_index
-        self.dict_model_output = {}
-        self.list_output_to_learn = []
+        self.dict_model_input = {}
+        self.list_input_to_learn = []
         self.list_target = []
 
 
@@ -68,12 +71,16 @@ class Structure:
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting)
 
-        if(len(self.list_output_to_learn)>=256):
-            tens_output = torch.FloatTensor(self.list_output_to_learn)
-            tens_target = torch.FloatTensor(self.list_target)
-            l = self.loss(tens_output, tens_target)
+        if(len(self.list_input_to_learn)>=2):
+            self.optimizer.zero_grad()
+            tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
+            tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
+            tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
+            out = self.model(tens_edges_occupation, tens_actual_edge)
+            l = self.loss(out, tens_target)
             l.backward()
-            self.list_output_to_learn = []
+            self.optimizer.step()
+            self.list_input_to_learn = []
             self.list_target = []
 
 
@@ -140,9 +147,10 @@ class Structure:
                     if(self.model != None and self.dict_edges_index != None):
                         tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
                         tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id]], dtype=torch.float)
-                        out = self.model(tens_edges_occupation, tens_actual_edge)
+                        with torch.no_grad():
+                            out = self.model(tens_edges_occupation, tens_actual_edge)
                         if(out >= 0.5):
-                            #self.dict_model_output[i] = out
+                            self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                             self.dict_cyclists[i].struct_candidate=True
                     else:
                             key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
