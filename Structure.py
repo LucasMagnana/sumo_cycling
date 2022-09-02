@@ -3,7 +3,7 @@ import torch
 
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci,\
-    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1):
+    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1, batch_size=32):
 
         for e in edges:
             id = e.getID()
@@ -24,6 +24,7 @@ class Structure:
         self.id_cyclists_waiting = []
 
         self.model = model
+        self.batch_size=batch_size
         if(self.model != None):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
@@ -71,7 +72,7 @@ class Structure:
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting)
 
-        if(len(self.list_input_to_learn)>=2):
+        if(len(self.list_input_to_learn)>=self.batch_size):
             self.optimizer.zero_grad()
             tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
             tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])

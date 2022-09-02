@@ -20,11 +20,12 @@ edge_separation = True
 
 open_struct=not new_scenario
 min_group_size=5
-step_gap=15
+step_gap=500
 time_travel_multiplier=0
 
 use_model = True
 save_model = True
+batch_size = 16
 
 
 step_length = 1
@@ -194,7 +195,7 @@ else:
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
-open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier)
+open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size)
 
 if(structure.open):
     print("WARNING : Structure is open...")
