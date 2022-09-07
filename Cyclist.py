@@ -139,7 +139,10 @@ class Cyclist:
             return True
         except self.module_traci.exceptions.TraCIException:
             self.alive = False
+            self.finish_step = -1
             print(self.id, "bugged (no path found to the struct)")
+            if self.id in self.structure.id_cyclists_waiting:
+                self.structure.id_cyclists_waiting.remove(self.id)
             return False
 
     def cross_struct(self):

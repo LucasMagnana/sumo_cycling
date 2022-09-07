@@ -147,12 +147,13 @@ class Structure:
                 if(self.dict_cyclists[i].actual_edge_id[0] != ":"):
                     if(self.model != None and self.dict_edges_index != None):
                         tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
-                        tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id]], dtype=torch.float)
+                        tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id],\
+                        self.dict_edges_index[self.dict_cyclists[i].original_path["path"][-1]]], dtype=torch.float)
                         with torch.no_grad():
                             out = self.model(tens_edges_occupation, tens_actual_edge)
                         if(out >= 0.5):
-                            self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                             self.dict_cyclists[i].struct_candidate=True
+                        self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                     else:
                             key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                             if(key_path_to_struct in self.dict_shortest_path):

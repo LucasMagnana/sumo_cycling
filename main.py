@@ -20,12 +20,12 @@ edge_separation = True
 
 open_struct=not new_scenario
 min_group_size=5
-step_gap=500
+step_gap=40
 time_travel_multiplier=0
 
 use_model = True
 save_model = True
-batch_size = 16
+batch_size = 64
 
 
 step_length = 1
@@ -203,6 +203,9 @@ else:
     print("WARNING : Structure is closed...")
 
 
+num_0 = 0
+num_1 = 0
+
 
 while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
     if(edge_separation):
@@ -271,15 +274,18 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     for i in copy.deepcopy(list(dict_cyclists.keys())):
         dict_cyclists[i].step(step, tab_scenario, new_scenario)
         if(not dict_cyclists[i].alive):
-            dict_cyclists_arrived[i] = dict_cyclists[i]
-            if(i in structure.dict_model_input):
-                if(dict_cyclists[i].finish_step<tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
-                    target = torch.Tensor([1])
-                else:
-                    target = torch.Tensor([0])
-                structure.list_input_to_learn.append(structure.dict_model_input[i])
-                structure.list_target.append(target)
-                del structure.dict_model_input[i]
+            if(dict_cyclists[i].finish_step > 0):
+                dict_cyclists_arrived[i] = dict_cyclists[i]
+                if(i in structure.dict_model_input):
+                    if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"] and dict_cyclists[i].struct_crossed):
+                        target = torch.Tensor([0])
+                    else:
+                        target = torch.Tensor([1])
+                    structure.list_input_to_learn.append(structure.dict_model_input[i])
+                    structure.list_target.append(target)
+                    del structure.dict_model_input[i]
+            else:
+                traci.vehicle.remove(i)
             del dict_cyclists[i]
 
     if(step%1==0):
@@ -297,14 +303,9 @@ if(new_scenario):
 
 traci.close()
 
-if(model != None and save_model):
-    if(not os.path.exists("models")):
-        os.makedirs("models")
-    print("WARNING: Saving model...")
-    torch.save(model.state_dict(), "models/model.pt")
-
 
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+
 
 
 if(not new_scenario):
@@ -323,3 +324,31 @@ if(not new_scenario):
         plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels)
 
         plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels)
+
+
+    if(model != None and save_model):
+        if(not os.path.exists("models")):
+            os.makedirs("models")
+            tab_num_cycl = []
+            tab_time_diff = []
+        else:
+            with open('models/num_cycl.tab', 'rb') as infile:
+                tab_num_cycl = pickle.load(infile)
+            with open('models/time_diff.tab', 'rb') as infile:
+                tab_time_diff = pickle.load(infile)
+
+        tab_num_cycl.append(structure.num_cyclists_crossed)
+        tab_time_diff.append(sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
+        print(tab_num_cycl, tab_time_diff)
+        plt.clf()
+        plt.plot(tab_time_diff)
+        plt.savefig("images/time_diff_evolution.png")
+
+        print("WARNING: Saving model...")
+        torch.save(model.state_dict(), "models/model.pt")
+
+        with open('models/num_cycl.tab', 'wb') as outfile:
+            pickle.dump(tab_num_cycl, outfile)
+        with open('models/time_diff.tab', 'wb') as outfile:
+            pickle.dump(tab_time_diff, outfile)
+
