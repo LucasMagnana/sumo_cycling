@@ -140,7 +140,7 @@ class Structure:
         list_id_candidates = []
 
         if(self.model != None and self.dict_edges_index != None):
-            edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID()))+1 for e in edges]
+            edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) for e in edges]
         for i in self.dict_cyclists:
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):

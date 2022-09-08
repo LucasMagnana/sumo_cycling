@@ -203,10 +203,6 @@ else:
     print("WARNING : Structure is closed...")
 
 
-num_0 = 0
-num_1 = 0
-
-
 while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
     if(edge_separation):
         e1 = randint(0, len(tab_right_edges)-1)
@@ -277,10 +273,17 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             if(dict_cyclists[i].finish_step > 0):
                 dict_cyclists_arrived[i] = dict_cyclists[i]
                 if(i in structure.dict_model_input):
-                    if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"] and dict_cyclists[i].struct_crossed):
-                        target = torch.Tensor([0])
+                    if(dict_cyclists[i].struct_crossed):
+                        if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
+                            target = torch.Tensor([0])
+                            tab_scenario[int(dict_cyclists[i].id)]["no_structure"] = True
+                        else:
+                            target = torch.Tensor([1])
                     else:
-                        target = torch.Tensor([1])
+                        if("no_structure" in tab_scenario[int(dict_cyclists[i].id)] and tab_scenario[int(dict_cyclists[i].id)]["no_structure"]):
+                            target = torch.Tensor([0])
+                        else:
+                            target = torch.Tensor([1])
                     structure.list_input_to_learn.append(structure.dict_model_input[i])
                     structure.list_target.append(target)
                     del structure.dict_model_input[i]
@@ -342,7 +345,7 @@ if(not new_scenario):
         print(tab_num_cycl, tab_time_diff)
         plt.clf()
         plt.plot(tab_time_diff)
-        plt.savefig("images/time_diff_evolution.png")
+        plt.savefig("images/evolution_time_diff.png")
 
         print("WARNING: Saving model...")
         torch.save(model.state_dict(), "models/model.pt")
