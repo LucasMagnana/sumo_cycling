@@ -25,7 +25,9 @@ time_travel_multiplier=0
 
 use_model = True
 save_model = True
-batch_size = 64
+batch_size = 32
+hidden_size_1 = 256
+hidden_size_2 = 128
 
 
 step_length = 1
@@ -183,7 +185,7 @@ for i, e in enumerate(edges) :
 
 
 if(use_model == True):
-    model = Model(len(edges), 256, 128)
+    model = Model(len(edges), hidden_size_1, hidden_size_2)
     print("WARNING : Using neural network...", end="")
     if(os.path.exists("models/model.pt")):
         model.load_state_dict(torch.load("models/model.pt"))
@@ -276,14 +278,25 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                     if(dict_cyclists[i].struct_crossed):
                         if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                             target = torch.Tensor([0])
-                            tab_scenario[int(dict_cyclists[i].id)]["no_structure"] = True
+                            if("max_structure_timeout" not in tab_scenario[int(dict_cyclists[i].id)]):
+                                tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] = 1
+                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = 1
+                            else:
+                                tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] *= 2
+                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = \
+                                random.randint(0, tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"])
                         else:
                             target = torch.Tensor([1])
                     else:
-                        if("no_structure" in tab_scenario[int(dict_cyclists[i].id)] and tab_scenario[int(dict_cyclists[i].id)]["no_structure"]):
-                            target = torch.Tensor([0])
+                        if("max_structure_timeout" in tab_scenario[int(dict_cyclists[i].id)]):
+                            if(tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"]>0):
+                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] -= 1
+                                target = torch.Tensor([0])
+                            else:
+                                target = torch.Tensor([1])
                         else:
                             target = torch.Tensor([1])
+
                     structure.list_input_to_learn.append(structure.dict_model_input[i])
                     structure.list_target.append(target)
                     del structure.dict_model_input[i]
