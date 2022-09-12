@@ -26,8 +26,8 @@ time_travel_multiplier=0
 use_model = True
 save_model = True
 batch_size = 32
-hidden_size_1 = 256
-hidden_size_2 = 128
+hidden_size_1 = 64
+hidden_size_2 = 32
 
 
 step_length = 1
