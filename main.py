@@ -278,15 +278,17 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                     if(dict_cyclists[i].struct_crossed):
                         if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                             target = torch.Tensor([0])
-                            if("max_structure_timeout" not in tab_scenario[int(dict_cyclists[i].id)]):
+                            if("max_structure_timeout" not in tab_scenario[int(dict_cyclists[i].id)] or\
+                            tab_scenario[int(dict_cyclists[i].id)] == 0):
                                 tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] = 1
-                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = 1
                             else:
                                 tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] *= 2
-                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = \
-                                random.randint(0, tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"])
+
+                            tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = \
+                            randint(1, tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"])
                         else:
                             target = torch.Tensor([1])
+                            tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] = 0
                     else:
                         if("max_structure_timeout" in tab_scenario[int(dict_cyclists[i].id)]):
                             if(tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"]>0):
