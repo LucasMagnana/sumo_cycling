@@ -347,18 +347,30 @@ if(not new_scenario):
             os.makedirs("models")
             tab_num_cycl = []
             tab_time_diff = []
+            tab_mean_loss = []
         else:
             with open('models/num_cycl.tab', 'rb') as infile:
                 tab_num_cycl = pickle.load(infile)
             with open('models/time_diff.tab', 'rb') as infile:
                 tab_time_diff = pickle.load(infile)
+            with open('models/mean_loss.tab', 'rb') as infile:
+                tab_mean_loss = pickle.load(infile)
 
         tab_num_cycl.append(structure.num_cyclists_crossed)
         tab_time_diff.append(sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
+
+        mean_loss = sum(structure.list_loss)/len(structure.list_loss)
+        tab_mean_loss.append(mean_loss)
+
         print(tab_num_cycl, tab_time_diff)
+
         plt.clf()
         plt.plot(tab_time_diff)
         plt.savefig("images/evolution_time_diff.png")
+
+        plt.clf()
+        plt.plot(tab_mean_loss)
+        plt.savefig("images/evolution_mean_loss.png")
 
         print("WARNING: Saving model...")
         torch.save(model.state_dict(), "models/model.pt")
@@ -367,4 +379,6 @@ if(not new_scenario):
             pickle.dump(tab_num_cycl, outfile)
         with open('models/time_diff.tab', 'wb') as outfile:
             pickle.dump(tab_time_diff, outfile)
+        with open('models/mean_loss.tab', 'wb') as outfile:
+            pickle.dump(tab_mean_loss, outfile)
 

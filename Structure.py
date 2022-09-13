@@ -33,6 +33,7 @@ class Structure:
         self.dict_model_input = {}
         self.list_input_to_learn = []
         self.list_target = []
+        self.list_loss = []
 
 
         for e in self.path["path"]:
@@ -79,6 +80,7 @@ class Structure:
             tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
             out = self.model(tens_edges_occupation, tens_actual_edge)
             l = self.loss(out, tens_target)
+            self.list_loss.append(l.item())
             l.backward()
             self.optimizer.step()
             self.list_input_to_learn = []
