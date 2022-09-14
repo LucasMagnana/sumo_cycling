@@ -285,7 +285,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                             if(dict_cyclists[i].id not in dict_timeouts):
                                 dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1}
                             else:
-                                dict_timeouts[dict_cyclists[i].id]["max"] += 2
+                                dict_timeouts[dict_cyclists[i].id]["max"] *= 2
 
                             dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                         else:
