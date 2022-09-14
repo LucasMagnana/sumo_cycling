@@ -190,7 +190,11 @@ if(use_model == True):
     if(os.path.exists("models/model.pt")):
         model.load_state_dict(torch.load("models/model.pt"))
         model.eval()
+        with open('models/timeouts.dict', 'rb') as infile:
+            dict_timeouts = pickle.load(infile)
         print("Loading it.", end="")
+    else:
+        dict_timeouts = {}
     print("")
 else:
     model = None
@@ -278,21 +282,20 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                     if(dict_cyclists[i].struct_crossed):
                         if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                             target = torch.Tensor([0])
-                            if("max_structure_timeout" not in tab_scenario[int(dict_cyclists[i].id)] or\
-                            tab_scenario[int(dict_cyclists[i].id)] == 0):
-                                tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] = 1
+                            if(dict_cyclists[i].id not in dict_timeouts):
+                                dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1}
                             else:
-                                tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] *= 2
+                                dict_timeouts[dict_cyclists[i].id]["max"] += 2
 
-                            tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] = \
-                            randint(1, tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"])
+                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                         else:
                             target = torch.Tensor([1])
-                            tab_scenario[int(dict_cyclists[i].id)]["max_structure_timeout"] = 0
+                            if(dict_cyclists[i].id in dict_timeouts):
+                                dict_timeouts[dict_cyclists[i].id]["max"] = 1
                     else:
-                        if("max_structure_timeout" in tab_scenario[int(dict_cyclists[i].id)]):
-                            if(tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"]>0):
-                                tab_scenario[int(dict_cyclists[i].id)]["structure_timeout"] -= 1
+                        if(dict_cyclists[i].id in dict_timeouts):
+                            if(dict_timeouts[dict_cyclists[i].id]["actual"]>0):
+                                dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
                                 target = torch.Tensor([0])
                             else:
                                 target = torch.Tensor([1])
@@ -376,6 +379,8 @@ if(not new_scenario):
 
         print("WARNING: Saving model...")
         torch.save(model.state_dict(), "models/model.pt")
+        with open('models/timeouts.dict', 'wb') as outfile:
+            pickle.dump(dict_timeouts, outfile)
 
         with open('models/num_cycl.tab', 'wb') as outfile:
             pickle.dump(tab_num_cycl, outfile)
