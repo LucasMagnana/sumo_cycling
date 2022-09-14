@@ -3,7 +3,7 @@ import torch
 
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci,\
-    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1, batch_size=32):
+    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1, batch_size=32, learning=True):
 
         for e in edges:
             id = e.getID()
@@ -25,10 +25,12 @@ class Structure:
 
         self.model = model
         self.batch_size=batch_size
-        if(self.model != None):
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        self.learning = learning
 
-        self.loss = torch.nn.BCELoss()
+        if(self.model != None and self.learning):
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+            self.loss = torch.nn.BCELoss()
+
         self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}
         self.list_input_to_learn = []
@@ -155,7 +157,8 @@ class Structure:
                             out = self.model(tens_edges_occupation, tens_actual_edge)
                         if(out >= 0.5):
                             self.dict_cyclists[i].struct_candidate=True
-                        self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
+                        if(self.learning):  
+                            self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                     else:
                             key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
                             if(key_path_to_struct in self.dict_shortest_path):

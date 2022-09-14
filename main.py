@@ -24,7 +24,8 @@ step_gap=40
 time_travel_multiplier=0
 
 use_model = True
-save_model = True
+save_model = False
+learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -201,7 +202,7 @@ else:
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
-open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size)
+open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size, learning=learning)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -376,6 +377,10 @@ if(not new_scenario):
         plt.clf()
         plt.plot(tab_mean_loss)
         plt.savefig("images/evolution_mean_loss.png")
+
+        plt.clf()
+        plt.plot(tab_num_cycl)
+        plt.savefig("images/evolution_num_struct_user.png")
 
         print("WARNING: Saving model...")
         torch.save(model.state_dict(), "models/model.pt")
