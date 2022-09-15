@@ -25,6 +25,7 @@ time_travel_multiplier=0
 
 use_model = True
 save_model = True
+learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -201,7 +202,7 @@ else:
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
-open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size)
+open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size, learning=learning)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -361,31 +362,32 @@ if(not new_scenario):
             with open('models/mean_loss.tab', 'rb') as infile:
                 tab_mean_loss = pickle.load(infile)
 
-        tab_num_cycl.append(structure.num_cyclists_crossed)
-        tab_time_diff.append(sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
+        if(learning):
+            tab_num_cycl.append(structure.num_cyclists_crossed)
+            tab_time_diff.append(sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
 
-        mean_loss = sum(structure.list_loss)/len(structure.list_loss)
-        tab_mean_loss.append(mean_loss)
+            mean_loss = sum(structure.list_loss)/len(structure.list_loss)
+            tab_mean_loss.append(mean_loss)
 
-        print(tab_num_cycl, tab_time_diff)
+            print(tab_num_cycl, tab_time_diff)
 
-        plt.clf()
-        plt.plot(tab_time_diff)
-        plt.savefig("images/evolution_time_diff.png")
+            plt.clf()
+            plt.plot(tab_time_diff)
+            plt.savefig("images/evolution_time_diff.png")
 
-        plt.clf()
-        plt.plot(tab_mean_loss)
-        plt.savefig("images/evolution_mean_loss.png")
+            plt.clf()
+            plt.plot(tab_mean_loss)
+            plt.savefig("images/evolution_mean_loss.png")
 
-        print("WARNING: Saving model...")
-        torch.save(model.state_dict(), "models/model.pt")
-        with open('models/timeouts.dict', 'wb') as outfile:
-            pickle.dump(dict_timeouts, outfile)
+            print("WARNING: Saving model...")
+            torch.save(model.state_dict(), "models/model.pt")
+            with open('models/timeouts.dict', 'wb') as outfile:
+                pickle.dump(dict_timeouts, outfile)
 
-        with open('models/num_cycl.tab', 'wb') as outfile:
-            pickle.dump(tab_num_cycl, outfile)
-        with open('models/time_diff.tab', 'wb') as outfile:
-            pickle.dump(tab_time_diff, outfile)
-        with open('models/mean_loss.tab', 'wb') as outfile:
-            pickle.dump(tab_mean_loss, outfile)
+            with open('models/num_cycl.tab', 'wb') as outfile:
+                pickle.dump(tab_num_cycl, outfile)
+            with open('models/time_diff.tab', 'wb') as outfile:
+                pickle.dump(tab_time_diff, outfile)
+            with open('models/mean_loss.tab', 'wb') as outfile:
+                pickle.dump(tab_mean_loss, outfile)
 
