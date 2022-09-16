@@ -87,8 +87,8 @@ class Structure:
             self.list_target = []
 
 
-        if(self.open and step%self.step_gap==0):
-            self.check_for_candidates(step, edges)           
+        '''if(self.open and step%self.step_gap==0):
+            self.check_for_candidates(step, edges)  '''         
 
 
 
@@ -138,12 +138,18 @@ class Structure:
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
-    def check_for_candidates(self, step, edges):
+    def check_for_candidates(self, step, edges, id=None):
         list_id_candidates = []
 
         if(self.model != None and self.dict_edges_index != None):
             edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) for e in edges]
-        for i in self.dict_cyclists:
+
+        if(id==None):
+            print("TAGROSSEMERE")
+            cyclists_id_to_browse = self.dict_cyclists
+        else:
+            cyclists_id_to_browse = [id]
+        for i in cyclists_id_to_browse:
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ":"):
@@ -170,7 +176,7 @@ class Structure:
                                 if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                                     list_id_candidates.append(i)
 
-        if(self.model == None and len(list_id_candidates)>=self.min_group_size*1):
+        if(self.model == None): # and len(list_id_candidates)>=self.min_group_size*1):
             for i in list_id_candidates:
                 self.dict_cyclists[i].struct_candidate=True
 

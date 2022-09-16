@@ -21,11 +21,11 @@ edge_separation = True
 open_struct=not new_scenario
 min_group_size=5
 step_gap=40
-time_travel_multiplier=0
+time_travel_multiplier=0.9
 
 use_model = True
-save_model = True
-learning = False
+save_model = use_model
+learning = True
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -92,6 +92,8 @@ def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab
             dict_cyclists[id]=c
             if(tab_scenario != None):
                 tab_scenario.append({"start_step": step, "start_edge":e1, "end_edge":e2, "max_speed": max_speed, "finish_step":-1})
+            if(structure.open and int(id)>100):
+                structure.check_for_candidates(step, edges, id=id)
             return True
     return False
 
@@ -230,9 +232,16 @@ while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
     path = dict_shortest_path[key_dict]
     if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
         id+=1
+    
 
+first_spawned_struct_checked = False
 
 while(len(dict_cyclists) != 0 or id<=num_cyclists):
+    
+    if(int(id)==max_num_cyclists_same_time and not first_spawned_struct_checked):
+        first_spawned_struct_checked = True
+        for i in dict_cyclists:
+            structure.check_for_candidates(step, edges, id=i)
     path=None
     if(new_scenario):
         if(id<=num_cyclists):
@@ -269,7 +278,8 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             finish_step=-1
             if("finish_step" in tab_scenario[id]):
                 finish_step=tab_scenario[id]["finish_step"]
-            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, finish_step=finish_step, max_speed=tab_scenario[id]["max_speed"])):
+            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, finish_step=finish_step,\
+            max_speed=tab_scenario[id]["max_speed"])):
                 id+=1
 
     traci.simulationStep() 
@@ -286,7 +296,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                             if(dict_cyclists[i].id not in dict_timeouts):
                                 dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1}
                             else:
-                                dict_timeouts[dict_cyclists[i].id]["max"] *= 2
+                                dict_timeouts[dict_cyclists[i].id]["max"] += 2
 
                             dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                         else:
