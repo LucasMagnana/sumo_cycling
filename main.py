@@ -25,7 +25,7 @@ time_travel_multiplier=0.9
 
 use_model = True
 save_model = use_model
-learning = True
+learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32

@@ -27,7 +27,7 @@ class Structure:
         self.learning = learning
         self.batch_size=batch_size
         if(self.model != None and self.learning):
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5)
             self.loss = torch.nn.BCELoss()
         self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}
