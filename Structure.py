@@ -3,7 +3,7 @@ import torch
 
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_shortest_path, dict_cyclists, traci,\
-    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1, batch_size=32, learning=True):
+    dict_edges_index=None, model=None, open=True, min_group_size=5, step_gap=15, time_travel_multiplier=1, batch_size=32, learning=True, lr=1e-5):
 
         for e in edges:
             id = e.getID()
@@ -27,7 +27,7 @@ class Structure:
         self.learning = learning
         self.batch_size=batch_size
         if(self.model != None and self.learning):
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
             self.loss = torch.nn.BCELoss()
         self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}

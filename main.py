@@ -29,7 +29,7 @@ learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
-
+lr=1e-5
 
 step_length = 1
 
@@ -204,7 +204,7 @@ else:
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
-open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size, learning=learning)
+open=open_struct, min_group_size=min_group_size, step_gap=step_gap, time_travel_multiplier=time_travel_multiplier, batch_size=batch_size, learning=learning, lr=lr)
 
 if(structure.open):
     print("WARNING : Structure is open...")
@@ -379,7 +379,7 @@ if(not new_scenario):
             mean_loss = sum(structure.list_loss)/len(structure.list_loss)
             tab_mean_loss.append(mean_loss)
 
-            print(tab_num_cycl, tab_time_diff)
+            print(tab_num_cycl, tab_time_diff, tab_mean_loss)
 
             plt.clf()
             plt.plot(tab_time_diff)
