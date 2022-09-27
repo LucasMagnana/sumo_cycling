@@ -31,10 +31,10 @@ hidden_size_1 = 64
 hidden_size_2 = 32
 lr=1e-5
 
-step_length = 1
+step_length = 0.2
 
 num_cyclists = 2500
-max_num_cyclists_same_time = 100
+max_num_cyclists_same_time = 50
 
 
 
@@ -83,11 +83,11 @@ def calculate_estimated_waiting_time(path, net):
     return estimated_wait_tls
 
 
-def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, tab_scenario=None, max_speed=None, finish_step=-1):
+def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=None, max_speed=None, finish_step=-1):
     if(path != None and len(path["path"])>10 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
         if(max_speed==None):
             max_speed = np.random.normal(15, 3)
-        c = Cyclist(id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, finish_step=finish_step)
+        c = Cyclist(id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, step_length, finish_step=finish_step)
         if(c.alive):
             dict_cyclists[id]=c
             if(tab_scenario != None):
@@ -230,7 +230,7 @@ while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
             e2 = randint(0, len(edges)-1)
             key_dict = edges[e1].getID()+";"+edges[e2].getID()
     path = dict_shortest_path[key_dict]
-    if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
+    if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=tab_scenario)):
         id+=1
     
 
@@ -238,7 +238,7 @@ first_spawned_struct_checked = False
 
 while(len(dict_cyclists) != 0 or id<=num_cyclists):
     
-    if(int(id)==max_num_cyclists_same_time and not first_spawned_struct_checked):
+    if(int(id)==max_num_cyclists_same_time and not first_spawned_struct_checked and structure.open):
         first_spawned_struct_checked = True
         for i in dict_cyclists:
             structure.check_for_candidates(step, edges, id=i)
@@ -264,7 +264,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                         key_dict = edges[e1].getID()+";"+edges[e2].getID()
                 path = dict_shortest_path[key_dict]
 
-                if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, tab_scenario=tab_scenario)):
+                if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=tab_scenario)):
                     id+=1
     else:
         while(id<=num_cyclists and step >= tab_scenario[id]["start_step"]):
@@ -278,7 +278,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             finish_step=-1
             if("finish_step" in tab_scenario[id]):
                 finish_step=tab_scenario[id]["finish_step"]
-            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, finish_step=finish_step,\
+            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, finish_step=finish_step,\
             max_speed=tab_scenario[id]["max_speed"])):
                 id+=1
 
@@ -320,11 +320,12 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
 
-    if(step%1==0):
+    #print(step%1, step%1<=step_length)
+    if(step%1<=step_length and structure.open):
         structure.step(step, edges)
 
     print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start."\
-    .format(step, len(traci.vehicle.getIDList()), id), end="")
+    .format(int(step), len(traci.vehicle.getIDList()), id), end="")
 
     step += step_length
 

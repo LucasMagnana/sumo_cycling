@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, struct_candidate=False, finish_step=-1):
+    def __init__(self, id, step, path, dict_shortest_path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=False, finish_step=-1):
         self.id = id
         self.start_step = step
         self.net=net
@@ -27,13 +27,13 @@ class Cyclist:
         self.module_traci.route.add(str(self.id)+"_sp", path["path"])
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
         
-        self.module_traci.vehicle.setTau(self.id, 1)
-        self.module_traci.vehicle.setActionStepLength(self.id, 1)
-
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id)) 
 
-        self.module_traci.vehicle.setActionStepLength(self.id, 1)
+        self.module_traci.vehicle.setActionStepLength(self.id, step_length)
+        self.module_traci.vehicle.setTau(self.id, step_length)
+        self.module_traci.vehicle.setMinGap(self.id, 0)
+
 
         self.dict_shortest_path = dict_shortest_path 
 
@@ -90,11 +90,11 @@ class Cyclist:
             if(self.step_cancel_struct_candidature > 0 and step>=self.step_cancel_struct_candidature and (self.id in self.structure.id_cyclists_waiting or self.actual_path == self.path_to_struct)):
                 self.cancel_struct_candidature()
 
-            if(self.actual_edge_id==self.structure.start_edge.getID() and len(self.structure.id_cyclists_waiting)>0):
+            if(self.actual_edge_id in self.structure.path["path"]):
                 if(self.actual_path == self.original_path and self.module_traci.vehicle.getLaneIndex(self.id) == 0):
-                    self.module_traci.vehicle.changeLane(self.id, 1, self.structure.start_edge.getLength()/self.max_speed)
+                    self.module_traci.vehicle.changeLane(self.id, 1, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)
                 elif(self.actual_path == self.path_to_struct and self.module_traci.vehicle.getLaneIndex(self.id) == 1):
-                    self.module_traci.vehicle.changeLane(self.id, 0, self.structure.start_edge.getLength()/self.max_speed)
+                    self.module_traci.vehicle.changeLane(self.id, 0, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)
 
             if(self.actual_path == self.structure.path and self.actual_edge_id==self.structure.end_edge.getID()):
                 self.exit_struct()

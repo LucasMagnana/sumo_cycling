@@ -71,7 +71,7 @@ class Structure:
 
 
     def step(self, step, edges):
-        #print(step, self.id_cyclists_waiting)
+        #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
         if(len(self.list_input_to_learn)>=self.batch_size):
             self.optimizer.zero_grad()
@@ -145,7 +145,6 @@ class Structure:
             edges_occupation=[len(self.module_traci.edge.getLastStepVehicleIDs(e.getID())) for e in edges]
 
         if(id==None):
-            print("TAGROSSEMERE")
             cyclists_id_to_browse = self.dict_cyclists
         else:
             cyclists_id_to_browse = [id]
