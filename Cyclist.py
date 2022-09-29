@@ -18,11 +18,19 @@ class Cyclist:
 
         try:
             self.path_to_struct = dict_shortest_path[self.original_path["path"][0]+";"+self.structure.start_edge.getID()]
-            self.path_from_struct = dict_shortest_path[self.structure.end_edge.getID()+";"+self.original_path["path"][-1]]
+            self.path_from_struct = dict_shortest_path[self.structure.start_edge.getID()+";"+self.original_path["path"][-1]]
         except KeyError:
             #print("Spawn failed, no path from or to the structure")
             self.alive = False
             return 
+
+        if(self.path_from_struct["path"][-1] in self.structure.path["path"]):
+            self.last_edge_in_struct_id = self.path_from_struct["path"][-1]
+        else:    
+            for i in range(len(self.path_from_struct["path"])):
+                if(self.path_from_struct["path"][i] not in self.structure.path["path"]):
+                    self.last_edge_in_struct_id = self.path_from_struct["path"][i-1]
+                    break
 
         self.module_traci.route.add(str(self.id)+"_sp", path["path"])
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bike_bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
@@ -63,6 +71,8 @@ class Cyclist:
 
         self.arrived=False
 
+        self.crossing_struct = False
+
 
 
 
@@ -91,12 +101,21 @@ class Cyclist:
                 self.cancel_struct_candidature()
 
             if(self.actual_edge_id in self.structure.path["path"]):
-                if(self.actual_path == self.original_path and self.module_traci.vehicle.getLaneIndex(self.id) == 0):
-                    self.module_traci.vehicle.changeLane(self.id, 1, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)
-                elif(self.actual_path == self.path_to_struct and self.module_traci.vehicle.getLaneIndex(self.id) == 1):
-                    self.module_traci.vehicle.changeLane(self.id, 0, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)
+                if(self.actual_path == self.original_path):
+                    self.module_traci.vehicle.changeLane(self.id, 1, 1)
+                elif(self.actual_edge_id != self.last_edge_in_struct_id):
+                    self.module_traci.vehicle.changeLane(self.id, 0, 1)
 
-            if(self.actual_path == self.structure.path and self.actual_edge_id==self.structure.end_edge.getID()):
+                '''if(self.id == "48"):
+                    print(self.module_traci.vehicle.getLaneIndex(self.id), self.module_traci.vehicle.wantsAndCouldChangeLane(self.id, -1), self.module_traci.vehicle.wantsAndCouldChangeLane(self.id, 1))
+                if(self.actual_path == self.original_path):
+                    if(self.module_traci.vehicle.getLaneIndex(self.id) == 0 or self.module_traci.vehicle.wantsAndCouldChangeLane(self.id, -1)):
+                        self.module_traci.vehicle.changeLane(self.id, 1, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)
+                else: 
+                    if(self.module_traci.vehicle.getLaneIndex(self.id) == 1 or self.module_traci.vehicle.wantsAndCouldChangeLane(self.id, 1)):
+                        self.module_traci.vehicle.changeLane(self.id, 0, self.net.getEdge(self.actual_edge_id).getLength()/self.max_speed)'''
+
+            if(self.crossing_struct and self.actual_edge_id[0] != ':' and self.actual_edge_id not in self.structure.path["path"]):
                 self.exit_struct()
 
             if(self.canceled_candidature):
@@ -146,22 +165,21 @@ class Cyclist:
             return False
 
     def cross_struct(self):
-        self.actual_path = self.structure.path
-        self.module_traci.vehicle.setRoute(self.id, self.structure.path["path"])
+        self.actual_path = self.path_from_struct
+        self.module_traci.vehicle.setRoute(self.id, self.path_from_struct["path"])
         if(self.module_traci.vehicle.isStopped(self.id)):
             self.module_traci.vehicle.resume(self.id)
         if(self.module_traci.vehicle.getNextStops(self.id)):
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
-        self.module_traci.vehicle.changeLane(self.id, 0, self.module_traci.vehicle.getDrivingDistance(self.id, self.actual_path["path"][-1], 0)/self.max_speed)
+        self.crossing_struct = True
 
 
     def exit_struct(self):
-        self.actual_path = self.path_from_struct
-        self.module_traci.vehicle.setRoute(self.id, self.path_from_struct["path"])
         self.struct_candidate = False
         self.structure.id_cyclists_crossing_struct.remove(self.id)
         self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
         self.struct_crossed = True
+        self.crossing_struct = False
 
     def cancel_struct_candidature(self):
         if(self.id in self.structure.id_cyclists_waiting):

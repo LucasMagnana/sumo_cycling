@@ -347,7 +347,19 @@ if(not new_scenario):
 
     plot_and_save_boxplot(tab_all_diff_arrival_time, "time_diff_struct", structure_was_open=structure.open)
 
-    print("mean finish time diff:", sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
+    num_diff_finish_step = 0   
+    sum_diff_finish_step = 0
+    
+    for i in range(len(tab_diff_finish_step)-1):
+            sum_diff_finish_step += sum(tab_diff_finish_step[i])
+            num_diff_finish_step += len(tab_diff_finish_step[i])
+
+    if(num_diff_finish_step == 0):
+        mean_diff_finish_step = 0
+    else:
+        mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
+    
+    print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:", sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1]))
 
     if(structure.open):
         labels=["Gagnants", "Perdants", "Annulés", "Reste"]

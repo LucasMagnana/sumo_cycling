@@ -131,10 +131,10 @@ class Structure:
         for e in self.path["path"]:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
-                if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)):
+                if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 1)
-                else:
+                elif(not(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct))):
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
