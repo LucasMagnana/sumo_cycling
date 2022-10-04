@@ -163,23 +163,48 @@ class Structure:
                         if(self.learning):
                             self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                     else:
-                            key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
-                            if(key_path_to_struct in self.dict_shortest_path):
-                                travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
-                                self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
-                                travel_time_by_struct += self.path["length"]/self.dict_cyclists[i].max_speed
-                                travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed+\
-                                self.dict_cyclists[i].path_from_struct["estimated_waiting_time"]
-                                step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
+                        key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
+                        if(key_path_to_struct in self.dict_shortest_path):
+                            travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
+                            self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
+                            travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed
+                            travel_time_by_struct += self.calculate_estimated_waiting_time_without_struct_tls(self.dict_cyclists[i].path_from_struct["path"])
+                            step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
 
-                                if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
-                                    list_id_candidates.append(i)
-
-        if(self.model == None): # and len(list_id_candidates)>=self.min_group_size*1):
-            for i in list_id_candidates:
-                self.dict_cyclists[i].struct_candidate=True
+                            if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
+                                self.dict_cyclists[i].struct_candidate=True
+            
 
         return
+
+
+    def calculate_estimated_waiting_time_without_struct_tls(self, path):
+        red_duration = 0
+        total_duration = 0
+        num_tls = 0
+        for e in path:
+            if(e not in self.path["path"]):
+                tls = self.net.getEdge(e).getTLS()
+                if(tls):
+                    num_tls+=1                
+                    tl_concerned = []
+                    i=0
+                    for l in self.module_traci.trafficlight.getControlledLinks(tls.getID()):                
+                        if(e in l[0][0]):
+                            tl_concerned.append(i)
+                        i+=1
+
+                    for p in self.module_traci.trafficlight.getAllProgramLogics(tls.getID())[0].getPhases():
+                        #print(p, tl_concerned)
+                        total_duration += p.minDur
+                        if('r' in p.state[tl_concerned[0]:tl_concerned[-1]]):
+                            red_duration += p.minDur
+        if(total_duration == 0):
+            estimated_wait_tls = 0
+        else:
+            estimated_wait_tls = red_duration/total_duration*red_duration
+            
+        return estimated_wait_tls
 
 
 

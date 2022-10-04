@@ -25,7 +25,7 @@ time_travel_multiplier=0.9
 
 use_model = True
 save_model = use_model
-learning = False
+learning = True
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -387,7 +387,7 @@ if(not new_scenario):
 
         if(learning):
             tab_num_cycl.append(structure.num_cyclists_crossed)
-            tab_time_diff.append(sum(tab_all_diff_arrival_time)/len(tab_all_diff_arrival_time))
+            tab_time_diff.append(mean_diff_finish_step)
 
             mean_loss = sum(structure.list_loss)/len(structure.list_loss)
             tab_mean_loss.append(mean_loss)
