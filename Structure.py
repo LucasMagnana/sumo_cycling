@@ -96,7 +96,7 @@ class Structure:
             if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+150
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+self.dict_cyclists[i].estimated_time_diff
                 
 
 
@@ -131,7 +131,8 @@ class Structure:
         for e in self.path["path"]:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
-                if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):
+                if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct) and\
+                len(self.module_traci.edge.getLastStepVehicleIDs(e)) >= self.min_group_size//2):
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 1)
                 elif(not(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct))):
@@ -152,6 +153,13 @@ class Structure:
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct\
             and not self.dict_cyclists[i].struct_crossed and not self.dict_cyclists[i].canceled_candidature):
                 if(self.dict_cyclists[i].actual_edge_id[0] != ":"):
+                    key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
+                    travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
+                    self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
+                    travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed
+                    travel_time_by_struct += self.calculate_estimated_waiting_time_without_struct_tls(self.dict_cyclists[i].path_from_struct["path"])
+                    step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
+
                     if(self.model != None and self.dict_edges_index != None):
                         tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
                         tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id],\
@@ -160,19 +168,13 @@ class Structure:
                             out = self.model(tens_edges_occupation, tens_actual_edge)
                         if(out >= 0.5):
                             self.dict_cyclists[i].struct_candidate=True
+                            self.dict_cyclists[i].estimated_time_diff = self.dict_cyclists[i].estimated_finish_step-step_arriving_by_crossing_struct
                         if(self.learning):
                             self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
-                    else:
-                        key_path_to_struct = self.dict_cyclists[i].actual_edge_id+";"+self.start_edge.getID()
-                        if(key_path_to_struct in self.dict_shortest_path):
-                            travel_time_by_struct = self.dict_shortest_path[key_path_to_struct]["length"]/self.dict_cyclists[i].max_speed+\
-                            self.dict_shortest_path[key_path_to_struct]["estimated_waiting_time"]
-                            travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed
-                            travel_time_by_struct += self.calculate_estimated_waiting_time_without_struct_tls(self.dict_cyclists[i].path_from_struct["path"])
-                            step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
-
-                            if(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
-                                self.dict_cyclists[i].struct_candidate=True
+                    elif(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
+                        self.dict_cyclists[i].struct_candidate=True
+                        self.dict_cyclists[i].estimated_time_diff = self.dict_cyclists[i].estimated_finish_step-step_arriving_by_crossing_struct
+                        
             
 
         return

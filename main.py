@@ -23,7 +23,7 @@ min_group_size=5
 step_gap=40
 time_travel_multiplier=0.9
 
-use_model = True
+use_model = False
 save_model = use_model
 learning = True
 batch_size = 32
@@ -298,7 +298,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                             else:
                                 dict_timeouts[dict_cyclists[i].id]["max"] += 2
 
-                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
+                            dict_timeouts[dict_cyclists[i].id]["actual"] = dict_timeouts[dict_cyclists[i].id]["max"]
                         else:
                             target = torch.Tensor([1])
                             if(dict_cyclists[i].id in dict_timeouts):

@@ -73,6 +73,8 @@ class Cyclist:
 
         self.crossing_struct = False
 
+        self.estimated_time_diff = 0
+
 
 
 
