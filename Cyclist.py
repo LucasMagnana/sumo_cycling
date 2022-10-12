@@ -75,6 +75,8 @@ class Cyclist:
 
         self.estimated_time_diff = 0
 
+        self.path_used = []
+
 
 
 
@@ -83,6 +85,8 @@ class Cyclist:
 
         if(self.id in self.module_traci.vehicle.getIDList()):
             self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
+            if(len(self.path_used) == 0 or self.path_used[-1] != self.actual_edge_id):
+                self.path_used.append(self.actual_edge_id)
             if(self.module_traci.vehicle.getSpeed(self.id)<0.5):
                 self.waiting_time += 1
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)

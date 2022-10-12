@@ -78,7 +78,8 @@ class Structure:
             tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
             tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
             tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
-            out = self.model(tens_edges_occupation, tens_actual_edge)
+            #out = self.model(tens_edges_occupation, tens_actual_edge)
+            out = self.model(tens_actual_edge)
             l = self.loss(out, tens_target)
             self.list_loss.append(l.item())
             l.backward()
@@ -159,21 +160,22 @@ class Structure:
                     travel_time_by_struct += self.dict_cyclists[i].path_from_struct["length"]/self.dict_cyclists[i].max_speed
                     travel_time_by_struct += self.calculate_estimated_waiting_time_without_struct_tls(self.dict_cyclists[i].path_from_struct["path"])
                     step_arriving_by_crossing_struct = step+travel_time_by_struct*self.time_travel_multiplier
+                    self.dict_cyclists[i].estimated_time_diff = self.dict_cyclists[i].estimated_finish_step-step_arriving_by_crossing_struct
 
                     if(self.model != None and self.dict_edges_index != None):
                         tens_edges_occupation = torch.tensor(edges_occupation, dtype=torch.float)
                         tens_actual_edge = torch.tensor([self.dict_edges_index[self.dict_cyclists[i].actual_edge_id],\
-                        self.dict_edges_index[self.dict_cyclists[i].original_path["path"][-1]]], dtype=torch.float)
+                        self.dict_edges_index[self.dict_cyclists[i].original_path["path"][-1]], self.dict_cyclists[i].estimated_time_diff], dtype=torch.float)
                         with torch.no_grad():
-                            out = self.model(tens_edges_occupation, tens_actual_edge)
+                            #out = self.model(tens_edges_occupation, tens_actual_edge)
+                            out = self.model(tens_actual_edge)
                         if(out >= 0.5):
                             self.dict_cyclists[i].struct_candidate=True
-                            self.dict_cyclists[i].estimated_time_diff = self.dict_cyclists[i].estimated_finish_step-step_arriving_by_crossing_struct
                         if(self.learning):
                             self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                     elif(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                         self.dict_cyclists[i].struct_candidate=True
-                        self.dict_cyclists[i].estimated_time_diff = self.dict_cyclists[i].estimated_finish_step-step_arriving_by_crossing_struct
+                        
                         
             
 
