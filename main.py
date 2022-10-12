@@ -25,7 +25,7 @@ time_travel_multiplier=0.9
 
 use_model = True
 save_model = use_model
-learning = True
+learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -35,6 +35,8 @@ step_length = 0.2
 
 num_cyclists = 2500
 max_num_cyclists_same_time = 50
+
+dict_structure_uses = {"used": [], "not_used": []}
 
 
 
@@ -290,7 +292,8 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             if(dict_cyclists[i].finish_step > 0):
                 dict_cyclists_arrived[i] = dict_cyclists[i]
                 if(i in structure.dict_model_input):
-                    if(dict_cyclists[i].struct_crossed):
+                    if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
+                        dict_structure_uses["used"].append(i)
                         if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                             target = torch.Tensor([0])
                             if(dict_cyclists[i].id not in dict_timeouts):
@@ -304,6 +307,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                             if(dict_cyclists[i].id in dict_timeouts):
                                 dict_timeouts[dict_cyclists[i].id]["max"] = 1
                     else:
+                        dict_structure_uses["not_used"].append(i)
                         if(len(set(dict_cyclists[i].path_used) & set(structure.path["path"]))>=len(structure.path["path"])//2):
                             target = torch.Tensor([1])
                         elif(dict_cyclists[i].id in dict_timeouts):
@@ -362,13 +366,18 @@ if(not new_scenario):
         mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
     
     print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:", sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1]))
+    
+    if(use_model):
+        sub_folders = "w_model/"
+    else:
+        sub_folders = "wou_model/"
 
     if(structure.open):
         labels=["Gagnants", "Perdants", "Annulés", "Reste"]
 
-        plot_and_save_boxplot(tab_diff_finish_step, "mean_time_diff", labels=labels)
-        plot_and_save_boxplot(tab_diff_waiting_time, "mean_waiting_time", labels=labels)
-        plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels)
+        plot_and_save_boxplot(tab_diff_finish_step, "mean_time_diff", labels=labels, sub_folders=sub_folders)
+        plot_and_save_boxplot(tab_diff_waiting_time, "mean_waiting_time", labels=labels, sub_folders=sub_folders)
+        plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels, sub_folders=sub_folders)
 
         plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels)
 
@@ -387,6 +396,10 @@ if(not new_scenario):
             with open('models/mean_loss.tab', 'rb') as infile:
                 tab_mean_loss = pickle.load(infile)
 
+
+        with open('models/structure_uses.dict', 'wb') as outfile:
+            pickle.dump(dict_structure_uses, outfile)
+
         if(learning):
             tab_num_cycl.append(structure.num_cyclists_crossed)
             tab_time_diff.append(mean_diff_finish_step)
@@ -398,11 +411,11 @@ if(not new_scenario):
 
             plt.clf()
             plt.plot(tab_time_diff)
-            plt.savefig("images/evolution_time_diff.png")
+            plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
 
             plt.clf()
             plt.plot(tab_mean_loss)
-            plt.savefig("images/evolution_mean_loss.png")
+            plt.savefig("images/"+sub_folders+"evolution_mean_loss.png")
 
             print("WARNING: Saving model...")
             torch.save(model.state_dict(), "models/model.pt")
@@ -415,4 +428,7 @@ if(not new_scenario):
                 pickle.dump(tab_time_diff, outfile)
             with open('models/mean_loss.tab', 'wb') as outfile:
                 pickle.dump(tab_mean_loss, outfile)
+    else:
+        with open('structure_uses.dict', 'wb') as outfile:
+            pickle.dump(dict_structure_uses, outfile)
 

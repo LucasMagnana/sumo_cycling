@@ -65,12 +65,12 @@ def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario)
 
 
 
-def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None):
+def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None, sub_folders=""):
     plt.clf()
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
     ax1.boxplot(data, labels=labels)
-    file_path = "images/"+file_title
+    file_path = "images/"+sub_folders+file_title
     if(structure_was_open != None):
         if(structure_was_open):
             file_path+="_open"
@@ -80,17 +80,17 @@ def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None
     plt.savefig(file_path)
 
 
-def plot_and_save_bar(data, file_title, labels=None):
+def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.clf()
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
     ax1.bar(range(len(data)), data, tick_label=labels)
-    plt.savefig("images/"+file_title+".png")
+    plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_and_save_line(data, file_title, labels=None):
+def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
     plt.clf()
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
     ax1.bar(range(len(data)), data, tick_label=labels)
-    plt.savefig("images/"+file_title+".png")
+    plt.savefig("images/"+sub_folders+file_title+".png")
