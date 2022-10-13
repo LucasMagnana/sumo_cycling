@@ -23,7 +23,7 @@ min_group_size=5
 step_gap=40
 time_travel_multiplier=0.9
 
-use_model = True
+use_model = False
 save_model = use_model
 learning = False
 batch_size = 32
@@ -351,7 +351,15 @@ if(not new_scenario):
     tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
     compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
 
-    plot_and_save_boxplot(tab_all_diff_arrival_time, "time_diff_struct", structure_was_open=structure.open)
+    if(use_model):
+        sub_folders = "w_model/"
+    else:
+        sub_folders = "wou_model/"
+    
+    if(not os.path.exists("images/"+sub_folders)):
+        os.makedirs("images/"+sub_folders)
+
+    plot_and_save_boxplot(tab_all_diff_arrival_time, "time_diff_struct", structure_was_open=structure.open, sub_folders=sub_folders)
 
     num_diff_finish_step = 0   
     sum_diff_finish_step = 0
@@ -366,11 +374,7 @@ if(not new_scenario):
         mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
     
     print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:", sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1]))
-    
-    if(use_model):
-        sub_folders = "w_model/"
-    else:
-        sub_folders = "wou_model/"
+
 
     if(structure.open):
         labels=["Gagnants", "Perdants", "Annulés", "Reste"]
@@ -379,7 +383,7 @@ if(not new_scenario):
         plot_and_save_boxplot(tab_diff_waiting_time, "mean_waiting_time", labels=labels, sub_folders=sub_folders)
         plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels, sub_folders=sub_folders)
 
-        plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels)
+        plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels, sub_folders=sub_folders)
 
 
     if(model != None and save_model):
