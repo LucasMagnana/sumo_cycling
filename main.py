@@ -11,6 +11,7 @@ from Structure import Structure
 from graphs import *
 from Model import Model
 
+#46 11 22 went in the first simu but was not worth
 
 
 load_shortest_paths = False
@@ -23,9 +24,9 @@ min_group_size=5
 step_gap=40
 time_travel_multiplier=0.9
 
-use_model = False
+use_model = True
 save_model = use_model
-learning = False
+learning = True
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -85,7 +86,7 @@ def calculate_estimated_waiting_time(path, net):
     return estimated_wait_tls
 
 
-def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=None, max_speed=None, finish_step=-1):
+def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, step_length, dict_timeouts, tab_scenario=None, max_speed=None, finish_step=-1):
     if(path != None and len(path["path"])>10 and edges[e1].getID() not in structure.path["path"] and edges[e2].getID() not in structure.path["path"]):
         if(max_speed==None):
             max_speed = np.random.normal(15, 3)
@@ -94,7 +95,7 @@ def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, ste
             dict_cyclists[id]=c
             if(tab_scenario != None):
                 tab_scenario.append({"start_step": step, "start_edge":e1, "end_edge":e2, "max_speed": max_speed, "finish_step":-1})
-            if(structure.open and int(id)>100):
+            if(structure.open and int(id)>100 and (not use_model or id not in dict_timeouts or dict_timeouts[id]["actual"] <= 0)):
                 structure.check_for_candidates(step, edges, id=id)
             return True
     return False
@@ -189,6 +190,8 @@ for i, e in enumerate(edges) :
     dict_edges_index[e.getID()] = i
 
 
+dict_timeouts = {}
+
 if(use_model == True):
     model = Model(len(edges), hidden_size_1, hidden_size_2)
     print("WARNING : Using neural network...", end="")
@@ -197,12 +200,13 @@ if(use_model == True):
         model.eval()
         with open('models/timeouts.dict', 'rb') as infile:
             dict_timeouts = pickle.load(infile)
-        print("Loading it.", end="")
-    else:
-        dict_timeouts = {}
+        print("Loading it.", end="")       
     print("")
 else:
     model = None
+
+
+print(dict_timeouts)
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
@@ -232,7 +236,7 @@ while(new_scenario and len(dict_cyclists)<max_num_cyclists_same_time):
             e2 = randint(0, len(edges)-1)
             key_dict = edges[e1].getID()+";"+edges[e2].getID()
     path = dict_shortest_path[key_dict]
-    if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=tab_scenario)):
+    if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, dict_timeouts, tab_scenario=tab_scenario)):
         id+=1
     
 
@@ -243,7 +247,8 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     if(int(id)==max_num_cyclists_same_time and not first_spawned_struct_checked and structure.open):
         first_spawned_struct_checked = True
         for i in dict_cyclists:
-            structure.check_for_candidates(step, edges, id=i)
+            if(not use_model or not i in dict_timeouts or dict_timeouts[i]["actual"] <= 0):
+                structure.check_for_candidates(step, edges, id=i)
     path=None
     if(new_scenario):
         if(id<=num_cyclists):
@@ -266,7 +271,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
                         key_dict = edges[e1].getID()+";"+edges[e2].getID()
                 path = dict_shortest_path[key_dict]
 
-                if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, tab_scenario=tab_scenario)):
+                if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, dict_timeouts, tab_scenario=tab_scenario)):
                     id+=1
     else:
         while(id<=num_cyclists and step >= tab_scenario[id]["start_step"]):
@@ -280,7 +285,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
             finish_step=-1
             if("finish_step" in tab_scenario[id]):
                 finish_step=tab_scenario[id]["finish_step"]
-            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, finish_step=finish_step,\
+            if(spawn_cyclist(str(id), step, path, dict_shortest_path, net, structure, edges, step_length, dict_timeouts, finish_step=finish_step,\
             max_speed=tab_scenario[id]["max_speed"])):
                 id+=1
 
@@ -291,42 +296,42 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
         if(not dict_cyclists[i].alive):
             if(dict_cyclists[i].finish_step > 0):
                 dict_cyclists_arrived[i] = dict_cyclists[i]
-                if(i in structure.dict_model_input):
+                if(use_model):
+                    target = None
                     if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
                         dict_structure_uses["used"].append(i)
                         if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
                             target = torch.Tensor([0])
                             if(dict_cyclists[i].id not in dict_timeouts):
-                                dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1}
+                                dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1, "last_max": -1, "last_actual": -1}
                             else:
+                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
                                 dict_timeouts[dict_cyclists[i].id]["max"] += 2
-
-                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
+                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                                dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                         else:
                             target = torch.Tensor([1])
                             if(dict_cyclists[i].id in dict_timeouts):
+                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
                                 dict_timeouts[dict_cyclists[i].id]["max"] = 1
+                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                                dict_timeouts[dict_cyclists[i].id]["actual"] = 0
                     else:
-                        dict_structure_uses["not_used"].append(i)
-                        if(len(set(dict_cyclists[i].path_used) & set(structure.path["path"]))>=len(structure.path["path"])//2):
-                            target = torch.Tensor([1])
-                        elif(dict_cyclists[i].id in dict_timeouts):
-                            if(dict_timeouts[dict_cyclists[i].id]["actual"]>0):
-                                dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
-                                target = torch.Tensor([0])
-                            else:
-                                target = torch.Tensor([1])
-                        else:
+                        dict_structure_uses["not_used"].append(i)  
+                        if(dict_cyclists[i].id in dict_timeouts and dict_timeouts[dict_cyclists[i].id]["actual"]>0):
+                            dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
+                        if(i in structure.dict_model_input):
                             target = torch.Tensor([1])
 
-                    structure.list_input_to_learn.append(structure.dict_model_input[i])
-                    structure.list_target.append(target)
-                    del structure.dict_model_input[i]
+                    if(i in structure.dict_model_input and target != None):
+                        structure.list_input_to_learn.append(structure.dict_model_input[i])
+                        structure.list_target.append(target)                  
+                        del structure.dict_model_input[i]
             else:
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
 
-    #print(step%1, step%1<=step_length)
+    #(step%1, step%1<=step_length)
     if(step%1<=step_length and structure.open):
         structure.step(step, edges)
 
@@ -342,7 +347,9 @@ if(new_scenario):
 
 traci.close()
 
-
+if(len(structure.list_input_to_learn)>0):
+    structure.learn()
+    
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 
@@ -365,8 +372,8 @@ if(not new_scenario):
     sum_diff_finish_step = 0
     
     for i in range(len(tab_diff_finish_step)-1):
-            sum_diff_finish_step += sum(tab_diff_finish_step[i])
-            num_diff_finish_step += len(tab_diff_finish_step[i])
+        sum_diff_finish_step += sum(tab_diff_finish_step[i])
+        num_diff_finish_step += len(tab_diff_finish_step[i])
 
     if(num_diff_finish_step == 0):
         mean_diff_finish_step = 0
@@ -405,33 +412,39 @@ if(not new_scenario):
             pickle.dump(dict_structure_uses, outfile)
 
         if(learning):
-            tab_num_cycl.append(structure.num_cyclists_crossed)
-            tab_time_diff.append(mean_diff_finish_step)
-
-            mean_loss = sum(structure.list_loss)/len(structure.list_loss)
-            tab_mean_loss.append(mean_loss)
-
-            print(tab_num_cycl, tab_time_diff, tab_mean_loss)
-
-            plt.clf()
-            plt.plot(tab_time_diff)
-            plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
-
-            plt.clf()
-            plt.plot(tab_mean_loss)
-            plt.savefig("images/"+sub_folders+"evolution_mean_loss.png")
-
-            print("WARNING: Saving model...")
-            torch.save(model.state_dict(), "models/model.pt")
             with open('models/timeouts.dict', 'wb') as outfile:
                 pickle.dump(dict_timeouts, outfile)
+            
+            if(len(structure.list_loss)):
+                tab_num_cycl.append(structure.num_cyclists_crossed)
+                tab_time_diff.append(mean_diff_finish_step)
 
-            with open('models/num_cycl.tab', 'wb') as outfile:
-                pickle.dump(tab_num_cycl, outfile)
-            with open('models/time_diff.tab', 'wb') as outfile:
-                pickle.dump(tab_time_diff, outfile)
-            with open('models/mean_loss.tab', 'wb') as outfile:
-                pickle.dump(tab_mean_loss, outfile)
+                mean_loss = sum(structure.list_loss)/len(structure.list_loss)
+                tab_mean_loss.append(mean_loss)
+
+                print(tab_num_cycl, tab_time_diff, tab_mean_loss)
+
+                plt.clf()
+                plt.plot(tab_time_diff)
+                plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
+
+                plt.clf()
+                plt.plot(tab_mean_loss)
+                plt.savefig("images/"+sub_folders+"evolution_mean_loss.png")
+
+                plt.clf()
+                plt.plot(tab_num_cycl)
+                plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
+
+                print("WARNING: Saving model...")
+                torch.save(model.state_dict(), "models/model.pt")
+
+                with open('models/num_cycl.tab', 'wb') as outfile:
+                    pickle.dump(tab_num_cycl, outfile)
+                with open('models/time_diff.tab', 'wb') as outfile:
+                    pickle.dump(tab_time_diff, outfile)
+                with open('models/mean_loss.tab', 'wb') as outfile:
+                    pickle.dump(tab_mean_loss, outfile)
     else:
         with open('structure_uses.dict', 'wb') as outfile:
             pickle.dump(dict_structure_uses, outfile)

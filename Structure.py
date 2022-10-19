@@ -69,27 +69,17 @@ class Structure:
         self.open = open
         self.time_travel_multiplier = time_travel_multiplier
 
+        self.pending_for_check_candidates = []
+
 
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
+        for i in self.pending_for_check_candidates:
+            self.check_for_candidates(step, edges, id=i)
+
         if(len(self.list_input_to_learn)>=self.batch_size):
-            self.optimizer.zero_grad()
-            tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
-            tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
-            tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
-            #out = self.model(tens_edges_occupation, tens_actual_edge)
-            out = self.model(tens_actual_edge)
-            l = self.loss(out, tens_target)
-            self.list_loss.append(l.item())
-            l.backward()
-            self.optimizer.step()
-            self.list_input_to_learn = []
-            self.list_target = []
-
-
-        '''if(self.open and step%self.step_gap==0):
-            self.check_for_candidates(step, edges)  '''         
+            self.learn()
 
 
 
@@ -98,10 +88,7 @@ class Structure:
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
                 self.dict_cyclists[i].step_cancel_struct_candidature = step+self.dict_cyclists[i].estimated_time_diff
-                
-
-
-                    #print(i, "waiting")
+                #print(i, "waiting")
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size):
             self.activated = True
@@ -140,6 +127,25 @@ class Structure:
                     if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
 
+
+
+
+    def learn(self):
+        self.optimizer.zero_grad()
+        tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
+        tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
+        tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
+        #out = self.model(tens_edges_occupation, tens_actual_edge)
+        out = self.model(tens_actual_edge)
+        l = self.loss(out, tens_target)
+        self.list_loss.append(l.item())
+        l.backward()
+        self.optimizer.step()
+        self.list_input_to_learn = []
+        self.list_target = []     
+
+
+
     def check_for_candidates(self, step, edges, id=None):
         list_id_candidates = []
 
@@ -175,6 +181,8 @@ class Structure:
                             self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
                     elif(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
                         self.dict_cyclists[i].struct_candidate=True
+                elif(i not in self.pending_for_check_candidates):
+                    self.pending_for_check_candidates.append(i)
                         
                         
             
