@@ -65,6 +65,7 @@ class Structure:
         self.step_gap = step_gap
 
         self.num_cyclists_crossed = 0
+        self.num_cyclists_canceled = 0
 
         self.open = open
         self.time_travel_multiplier = time_travel_multiplier
@@ -87,7 +88,7 @@ class Structure:
             if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+self.dict_cyclists[i].estimated_time_diff
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+self.dict_cyclists[i].estimated_time_diff*1.5
                 #print(i, "waiting")
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size):
@@ -146,7 +147,10 @@ class Structure:
 
 
 
-    def check_for_candidates(self, step, edges, id=None):
+    def check_for_candidates(self, step, edges, id=None, force_candidature=False):
+
+        #print(force_candidature)
+
         list_id_candidates = []
 
         if(self.model != None and self.dict_edges_index != None):
@@ -179,7 +183,7 @@ class Structure:
                             self.dict_cyclists[i].struct_candidate=True
                         if(self.learning):
                             self.dict_model_input[i] = (tens_edges_occupation, tens_actual_edge)
-                    elif(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step):
+                    elif(step_arriving_by_crossing_struct<=self.dict_cyclists[i].estimated_finish_step or force_candidature):
                         self.dict_cyclists[i].struct_candidate=True
                 elif(i not in self.pending_for_check_candidates):
                     self.pending_for_check_candidates.append(i)

@@ -214,6 +214,8 @@ class Cyclist:
             self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1, duration=0)
         self.step_cancel_struct_candidature = -1
 
+        self.structure.num_cyclists_canceled += 1
+
 
 
     def set_max_speed(self, max_speed):

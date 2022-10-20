@@ -24,7 +24,7 @@ min_group_size=5
 step_gap=40
 time_travel_multiplier=0.9
 
-use_model = True
+use_model = False
 save_model = use_model
 learning = True
 batch_size = 32
@@ -39,6 +39,11 @@ max_num_cyclists_same_time = 50
 
 dict_structure_uses = {"used": [], "not_used": []}
 
+if(use_model):
+    sub_folders = "w_model/"
+else:
+    sub_folders = "wou_model/"
+
 
 
 
@@ -50,7 +55,7 @@ else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
 sumoBinary = "/usr/bin/sumo"
-sumoCmd = [sumoBinary, "-c", "osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/osm.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci
@@ -95,8 +100,8 @@ def spawn_cyclist(id, step, path, dict_shortest_path, net, structure, edges, ste
             dict_cyclists[id]=c
             if(tab_scenario != None):
                 tab_scenario.append({"start_step": step, "start_edge":e1, "end_edge":e2, "max_speed": max_speed, "finish_step":-1})
-            if(structure.open and int(id)>100 and (not use_model or id not in dict_timeouts or dict_timeouts[id]["actual"] <= 0)):
-                structure.check_for_candidates(step, edges, id=id)
+            if(structure.open and int(id)>max_num_cyclists_same_time and (id not in dict_timeouts or dict_timeouts[id]["actual"] <= 0)):
+                structure.check_for_candidates(step, edges, id=id, force_candidature=force_candidature)
             return True
     return False
 
@@ -135,7 +140,7 @@ def separate_edges(edges):
 
 traci.start(sumoCmd)
 
-net = sumolib.net.readNet('osm.net.xml')
+net = sumolib.net.readNet('sumo_files/osm.net.xml')
 edges = net.getEdges()
 
 if(edge_separation):
@@ -191,15 +196,18 @@ for i, e in enumerate(edges) :
 
 
 dict_timeouts = {}
+force_candidature = False
+if(os.path.exists('files/'+sub_folders+'timeouts.dict')):
+    with open('files/'+sub_folders+'timeouts.dict', 'rb') as infile:
+        dict_timeouts = pickle.load(infile)
+        force_candidature = True
 
 if(use_model == True):
     model = Model(len(edges), hidden_size_1, hidden_size_2)
     print("WARNING : Using neural network...", end="")
-    if(os.path.exists("models/model.pt")):
-        model.load_state_dict(torch.load("models/model.pt"))
+    if(os.path.exists("files/"+sub_folders+"model.pt")):
+        model.load_state_dict(torch.load("files/"+sub_folders+"model.pt"))
         model.eval()
-        with open('models/timeouts.dict', 'rb') as infile:
-            dict_timeouts = pickle.load(infile)
         print("Loading it.", end="")       
     print("")
 else:
@@ -248,7 +256,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
         first_spawned_struct_checked = True
         for i in dict_cyclists:
             if(not use_model or not i in dict_timeouts or dict_timeouts[i]["actual"] <= 0):
-                structure.check_for_candidates(step, edges, id=i)
+                structure.check_for_candidates(step, edges, id=i, force_candidature=force_candidature)
     path=None
     if(new_scenario):
         if(id<=num_cyclists):
@@ -296,37 +304,39 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
         if(not dict_cyclists[i].alive):
             if(dict_cyclists[i].finish_step > 0):
                 dict_cyclists_arrived[i] = dict_cyclists[i]
-                if(use_model):
-                    target = None
-                    if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
-                        dict_structure_uses["used"].append(i)
-                        if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
-                            target = torch.Tensor([0])
-                            if(dict_cyclists[i].id not in dict_timeouts):
-                                dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1, "last_max": -1, "last_actual": -1}
-                            else:
-                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
-                                dict_timeouts[dict_cyclists[i].id]["max"] += 2
-                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
-                                dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
+                target = None
+                if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
+                    dict_structure_uses["used"].append(i)
+                    if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
+                        target = torch.Tensor([0])
+                        if(dict_cyclists[i].id not in dict_timeouts):
+                            dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 1, "last_max": -1, "last_actual": -1}
                         else:
-                            target = torch.Tensor([1])
-                            if(dict_cyclists[i].id in dict_timeouts):
-                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
-                                dict_timeouts[dict_cyclists[i].id]["max"] = 1
-                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
-                                dict_timeouts[dict_cyclists[i].id]["actual"] = 0
+                            dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
+                            dict_timeouts[dict_cyclists[i].id]["max"] += 2
+                            dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                     else:
-                        dict_structure_uses["not_used"].append(i)  
-                        if(dict_cyclists[i].id in dict_timeouts and dict_timeouts[dict_cyclists[i].id]["actual"]>0):
-                            dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
-                        if(i in structure.dict_model_input):
-                            target = torch.Tensor([1])
+                        target = torch.Tensor([1])
+                        if(dict_cyclists[i].id in dict_timeouts):
+                            dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
+                            dict_timeouts[dict_cyclists[i].id]["max"] = 1
+                            dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                            dict_timeouts[dict_cyclists[i].id]["actual"] = 0
+                else:
+                    dict_structure_uses["not_used"].append(i)  
+                    if(dict_cyclists[i].id in dict_timeouts and dict_timeouts[dict_cyclists[i].id]["actual"]>0):
+                        dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
+                    if(i in structure.dict_model_input):
+                        target = torch.Tensor([1])
+                    elif(not use_model):
+                        dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 0, "last_max": -1, "last_actual": -1}
 
-                    if(i in structure.dict_model_input and target != None):
-                        structure.list_input_to_learn.append(structure.dict_model_input[i])
-                        structure.list_target.append(target)                  
-                        del structure.dict_model_input[i]
+
+                if(i in structure.dict_model_input and target != None):
+                    structure.list_input_to_learn.append(structure.dict_model_input[i])
+                    structure.list_target.append(target)                  
+                    del structure.dict_model_input[i]
             else:
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
@@ -357,11 +367,6 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 if(not new_scenario):
     tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
     compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
-
-    if(use_model):
-        sub_folders = "w_model/"
-    else:
-        sub_folders = "wou_model/"
     
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
@@ -393,59 +398,60 @@ if(not new_scenario):
         plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels, sub_folders=sub_folders)
 
 
-    if(model != None and save_model):
-        if(not os.path.exists("models")):
-            os.makedirs("models")
-            tab_num_cycl = []
-            tab_time_diff = []
-            tab_mean_loss = []
-        else:
-            with open('models/num_cycl.tab', 'rb') as infile:
-                tab_num_cycl = pickle.load(infile)
-            with open('models/time_diff.tab', 'rb') as infile:
-                tab_time_diff = pickle.load(infile)
-            with open('models/mean_loss.tab', 'rb') as infile:
-                tab_mean_loss = pickle.load(infile)
-
-
-        with open('models/structure_uses.dict', 'wb') as outfile:
-            pickle.dump(dict_structure_uses, outfile)
-
         if(learning):
-            with open('models/timeouts.dict', 'wb') as outfile:
-                pickle.dump(dict_timeouts, outfile)
             
-            if(len(structure.list_loss)):
-                tab_num_cycl.append(structure.num_cyclists_crossed)
-                tab_time_diff.append(mean_diff_finish_step)
+            if(not os.path.exists("files/"+sub_folders)):
+                os.makedirs("files/"+sub_folders)
+                tab_num_cycl = [[], []]
+                tab_time_diff = []
+                if(use_model):
+                    tab_mean_loss = []
+            else:
+                with open('files/'+sub_folders+'num_cycl.tab', 'rb') as infile:
+                    tab_num_cycl = pickle.load(infile)
+                with open('files/'+sub_folders+'time_diff.tab', 'rb') as infile:
+                    tab_time_diff = pickle.load(infile)
+                if(use_model):
+                    with open('files/'+sub_folders+'mean_loss.tab', 'rb') as infile:
+                        tab_mean_loss = pickle.load(infile)
 
+            with open('files/'+sub_folders+'timeouts.dict', 'wb') as outfile:
+                pickle.dump(dict_timeouts, outfile)
+
+            with open('files/'+sub_folders+'structure_uses.dict', 'wb') as outfile:
+                pickle.dump(dict_structure_uses, outfile)
+
+            tab_num_cycl[0].append(structure.num_cyclists_crossed)
+            tab_num_cycl[1].append(structure.num_cyclists_canceled)
+            tab_time_diff.append(mean_diff_finish_step)
+
+            print(tab_num_cycl[0], tab_num_cycl[1], tab_time_diff)
+
+            plt.clf()
+            plt.plot(tab_time_diff)
+            plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
+
+            plt.clf()
+            plt.plot(tab_num_cycl[0], label="num crossed")
+            plt.plot(tab_num_cycl[1], label="num canceled")
+            plt.legend()
+            plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
+
+            with open('files/'+sub_folders+'num_cycl.tab', 'wb') as outfile:
+                pickle.dump(tab_num_cycl, outfile)
+            with open('files/'+sub_folders+'time_diff.tab', 'wb') as outfile:
+                pickle.dump(tab_time_diff, outfile)
+
+            if(use_model and save_model and len(structure.list_loss) != 0):
+                print(tab_mean_loss)
                 mean_loss = sum(structure.list_loss)/len(structure.list_loss)
                 tab_mean_loss.append(mean_loss)
-
-                print(tab_num_cycl, tab_time_diff, tab_mean_loss)
-
-                plt.clf()
-                plt.plot(tab_time_diff)
-                plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
-
+                
                 plt.clf()
                 plt.plot(tab_mean_loss)
                 plt.savefig("images/"+sub_folders+"evolution_mean_loss.png")
 
-                plt.clf()
-                plt.plot(tab_num_cycl)
-                plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
-
-                print("WARNING: Saving model...")
-                torch.save(model.state_dict(), "models/model.pt")
-
-                with open('models/num_cycl.tab', 'wb') as outfile:
-                    pickle.dump(tab_num_cycl, outfile)
-                with open('models/time_diff.tab', 'wb') as outfile:
-                    pickle.dump(tab_time_diff, outfile)
-                with open('models/mean_loss.tab', 'wb') as outfile:
+                with open('files/'+sub_folders+'mean_loss.tab', 'wb') as outfile:
                     pickle.dump(tab_mean_loss, outfile)
-    else:
-        with open('structure_uses.dict', 'wb') as outfile:
-            pickle.dump(dict_structure_uses, outfile)
+
 
