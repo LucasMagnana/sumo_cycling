@@ -67,6 +67,8 @@ class Structure:
         self.num_cyclists_crossed = 0
         self.num_cyclists_canceled = 0
 
+        self.tab_id_cyclists_crossed = []
+
         self.open = open
         self.time_travel_multiplier = time_travel_multiplier
 
@@ -88,7 +90,7 @@ class Structure:
             if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
             and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+self.dict_cyclists[i].estimated_time_diff*1.5
+                self.dict_cyclists[i].step_cancel_struct_candidature = step+200
                 #print(i, "waiting")
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size):
@@ -101,6 +103,7 @@ class Structure:
                 #print(i, "crossing")
                 self.id_cyclists_crossing_struct.append(i)
                 self.num_cyclists_crossed += 1
+                self.tab_id_cyclists_crossed.append(i)
             self.id_cyclists_waiting = []
 
             for i in self.id_cyclists_crossing_struct:

@@ -1,1 +1,1 @@
-for i in {1..20}; do python3 main.py; done
+for i in {1..50}; do python3 main.py; done
