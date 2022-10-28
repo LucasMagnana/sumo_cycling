@@ -22,7 +22,7 @@ edge_separation = True
 open_struct=not new_scenario
 min_group_size=5
 step_gap=40
-time_travel_multiplier=0.9
+time_travel_multiplier=1
 
 use_model = False
 save_model = use_model
@@ -49,10 +49,6 @@ else:
 if(os.path.exists('files/'+sub_folders+'id_cyclists_crossed.tab')):
     with open('files/'+sub_folders+'id_cyclists_crossed.tab', 'rb') as infile:
         tab_id_cyclists_crossed = pickle.load(infile)
-
-    for i in range(len(tab_id_cyclists_crossed)-1):
-        for j in range(i+1, len(tab_id_cyclists_crossed)):
-            print(i,j, len(set(tab_id_cyclists_crossed[i])&set(tab_id_cyclists_crossed[j]))/len(tab_id_cyclists_crossed[i]))
 
 
 
@@ -224,8 +220,12 @@ else:
     model = None
 
 
-print(dict_timeouts)
-print(len(dict_timeouts))
+if(not learning):
+    with open('files/'+sub_folders+'timeouts_saved.dict', 'rb') as infile:
+        dict_timeouts = pickle.load(infile)
+        print(dict_timeouts)
+
+dict_timeouts_saved = copy.deepcopy(dict_timeouts)
 
 
 structure = Structure("237920408#2", "207728319#9", edges, net, dict_shortest_path, dict_cyclists, traci, dict_edges_index, model,\
@@ -457,6 +457,12 @@ if(not new_scenario):
             plt.plot(tab_num_cycl[1], label="num canceled")
             plt.legend()
             plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
+
+
+            if(tab_time_diff[-1] == max(tab_time_diff)): 
+                print("Saving dict timeouts...")                 
+                with open('files/'+sub_folders+'timeouts_saved.dict', 'wb') as outfile:
+                    pickle.dump(dict_timeouts_saved, outfile)
 
             with open('files/'+sub_folders+'num_cycl.tab', 'wb') as outfile:
                 pickle.dump(tab_num_cycl, outfile)
