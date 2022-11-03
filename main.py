@@ -311,49 +311,57 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     traci.simulationStep() 
 
     for i in copy.deepcopy(list(dict_cyclists.keys())):
-        dict_cyclists[i].step(step, tab_scenario, new_scenario)
+        dict_cyclists[i].step(step)
         if(not dict_cyclists[i].alive):
             if(dict_cyclists[i].finish_step > 0):
                 dict_cyclists_arrived[i] = dict_cyclists[i]
                 target = None
-                if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
-                    dict_structure_uses["used"].append(i)
-                    if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
-                        target = torch.Tensor([0])
-                        if(dict_cyclists[i].id not in dict_timeouts):
-                            dict_timeouts[dict_cyclists[i].id] = {"max": 2, "actual": -1, "last_max": -1, "last_actual": -1}
-                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
-                            
+                if(not new_scenario):
+                    if(dict_cyclists[i].struct_crossed or dict_cyclists[i].canceled_candidature):
+                        dict_structure_uses["used"].append(i)
+                        if(dict_cyclists[i].finish_step>tab_scenario[int(dict_cyclists[i].id)]["finish_step"]):
+                            target = torch.Tensor([0])
+                            if(dict_cyclists[i].id not in dict_timeouts):
+                                dict_timeouts[dict_cyclists[i].id] = {"max": 2, "actual": -1, "last_max": -1, "last_actual": -1}
+                                dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
+                                
+                            else:
+                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
+                                dict_timeouts[dict_cyclists[i].id]["max"] *= 2
+                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                                dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
                         else:
-                            dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
-                            dict_timeouts[dict_cyclists[i].id]["max"] *= 2
-                            dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
-                            dict_timeouts[dict_cyclists[i].id]["actual"] = randint(1, dict_timeouts[dict_cyclists[i].id]["max"])
+                            target = torch.Tensor([1])
+                            if(dict_cyclists[i].id not in dict_timeouts):
+                                dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 0, "last_max": -1, "last_actual": -1}
+                            else:
+                                dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
+                                dict_timeouts[dict_cyclists[i].id]["actual"] = 0
+                                dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
+                                dict_timeouts[dict_cyclists[i].id]["max"] = 1
                     else:
-                        target = torch.Tensor([1])
-                        if(dict_cyclists[i].id not in dict_timeouts):
+                        dict_structure_uses["not_used"].append(i)  
+                        if(dict_cyclists[i].id in dict_timeouts):
+                            if(dict_timeouts[dict_cyclists[i].id]["actual"]>0):
+                                dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
+                        else:
                             dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 0, "last_max": -1, "last_actual": -1}
-                        else:
-                            dict_timeouts[dict_cyclists[i].id]["last_actual"] = dict_timeouts[dict_cyclists[i].id]["actual"]
-                            dict_timeouts[dict_cyclists[i].id]["actual"] = 0
-                            dict_timeouts[dict_cyclists[i].id]["last_max"] = dict_timeouts[dict_cyclists[i].id]["max"]
-                            dict_timeouts[dict_cyclists[i].id]["max"] = 1
+
+                        if(i in structure.dict_model_input):
+                            target = torch.Tensor([1])
+
+                    if(i in structure.dict_model_input and target != None):
+                        structure.list_input_to_learn.append(structure.dict_model_input[i])
+                        structure.list_target.append(target)                  
+                        del structure.dict_model_input[i]
                 else:
-                    dict_structure_uses["not_used"].append(i)  
-                    if(dict_cyclists[i].id in dict_timeouts):
-                        if(dict_timeouts[dict_cyclists[i].id]["actual"]>0):
-                            dict_timeouts[dict_cyclists[i].id]["actual"] -= 1
-                    else:
-                        dict_timeouts[dict_cyclists[i].id] = {"max": 1, "actual": 0, "last_max": -1, "last_actual": -1}
-
-                    if(i in structure.dict_model_input):
-                        target = torch.Tensor([1])
+                    tab_scenario[int(dict_cyclists[i].id)]["finish_step"]=step
+                    tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"]=dict_cyclists[i].distance_travelled
+                    tab_scenario[int(dict_cyclists[i].id)]["waiting_time"]=dict_cyclists[i].waiting_time
+                    tab_scenario[int(dict_cyclists[i].id)]["mean_speed"]=dict_cyclists[i].mean_speed
+                    tab_scenario[int(dict_cyclists[i].id)]["mean_speed_w_stop"]=dict_cyclists[i].mean_speed_w_stop
 
 
-                if(i in structure.dict_model_input and target != None):
-                    structure.list_input_to_learn.append(structure.dict_model_input[i])
-                    structure.list_target.append(target)                  
-                    del structure.dict_model_input[i]
             else:
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
@@ -382,8 +390,8 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 
 
 if(not new_scenario):
-    tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
-    compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
+    tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists,\
+    tab_diff_mean_speed, tab_diff_mean_speed_w_stop = compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
     
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
@@ -392,15 +400,39 @@ if(not new_scenario):
 
     num_diff_finish_step = 0   
     sum_diff_finish_step = 0
+
+    num_diff_speed = 0
+    sum_diff_speed = 0
+
+    num_diff_speed_w_stop = 0
+    sum_diff_speed_w_stop = 0
+    
     
     for i in range(len(tab_diff_finish_step)-1):
         sum_diff_finish_step += sum(tab_diff_finish_step[i])
         num_diff_finish_step += len(tab_diff_finish_step[i])
 
+        sum_diff_speed += sum(tab_diff_mean_speed[i])
+        num_diff_speed += len(tab_diff_mean_speed[i])
+
+        sum_diff_speed_w_stop += sum(tab_diff_mean_speed_w_stop[i])
+        num_diff_speed_w_stop += len(tab_diff_mean_speed_w_stop[i])
+
     if(num_diff_finish_step == 0):
         mean_diff_finish_step = 0
     else:
         mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
+
+
+    if(num_diff_speed == 0):
+        mean_diff_speed = 0
+    else:
+        mean_diff_speed = sum_diff_speed/num_diff_speed
+
+    if(num_diff_speed_w_stop == 0):
+        mean_diff_speed_w_stop = 0
+    else:
+        mean_diff_speed_w_stop = sum_diff_speed_w_stop/num_diff_speed_w_stop
     
     print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:", sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1]))
 
@@ -411,6 +443,8 @@ if(not new_scenario):
         plot_and_save_boxplot(tab_diff_finish_step, "mean_time_diff", labels=labels, sub_folders=sub_folders)
         plot_and_save_boxplot(tab_diff_waiting_time, "mean_waiting_time", labels=labels, sub_folders=sub_folders)
         plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels, sub_folders=sub_folders)
+        plot_and_save_boxplot(tab_diff_mean_speed, "mean_speed", labels=labels, sub_folders=sub_folders)
+        plot_and_save_boxplot(tab_diff_mean_speed_w_stop, "mean_speed_w_stop", labels=labels, sub_folders=sub_folders)
 
         plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels, sub_folders=sub_folders)
 
@@ -422,6 +456,7 @@ if(not new_scenario):
                 tab_num_cycl = [[], []]
                 tab_time_diff = []
                 tab_id_cyclists_crossed = []
+                tab_speeds_diff = [[],[]]
                 if(use_model):
                     tab_mean_loss = []
             else:
@@ -429,6 +464,8 @@ if(not new_scenario):
                     tab_num_cycl = pickle.load(infile)
                 with open('files/'+sub_folders+'time_diff.tab', 'rb') as infile:
                     tab_time_diff = pickle.load(infile)
+                with open('files/'+sub_folders+'speeds_diff.tab', 'rb') as infile:
+                    tab_speeds_diff = pickle.load(infile)
                 with open('files/'+sub_folders+'id_cyclists_crossed.tab', 'rb') as infile:
                     tab_id_cyclists_crossed = pickle.load(infile)
                 if(use_model):
@@ -443,6 +480,11 @@ if(not new_scenario):
 
             tab_num_cycl[0].append(structure.num_cyclists_crossed)
             tab_num_cycl[1].append(structure.num_cyclists_canceled)
+
+            tab_speeds_diff[0].append(mean_diff_speed)
+            tab_speeds_diff[1].append(mean_diff_speed_w_stop)
+
+
             tab_time_diff.append(mean_diff_finish_step)
             tab_id_cyclists_crossed.append(structure.tab_id_cyclists_crossed)
 
@@ -458,6 +500,12 @@ if(not new_scenario):
             plt.legend()
             plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
 
+            plt.clf()
+            plt.plot(tab_speeds_diff[0], label="mean speed diff")
+            plt.plot(tab_speeds_diff[1], label="mean speed diff with stop")
+            plt.legend()
+            plt.savefig("images/"+sub_folders+"evolution_mean_speed_diff.png")
+
 
             if(tab_time_diff[-1] == max(tab_time_diff)): 
                 print("Saving dict timeouts...")                 
@@ -470,6 +518,8 @@ if(not new_scenario):
                 pickle.dump(tab_time_diff, outfile)
             with open('files/'+sub_folders+'id_cyclists_crossed.tab', 'wb') as outfile:
                 pickle.dump(tab_id_cyclists_crossed, outfile)
+            with open('files/'+sub_folders+'speeds_diff.tab', 'wb') as outfile:
+                pickle.dump(tab_speeds_diff, outfile)
 
             if(use_model and save_model and len(structure.list_loss) != 0):
                 print(tab_mean_loss)

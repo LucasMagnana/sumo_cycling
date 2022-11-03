@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
 
 def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario):
-    tab_diff_finish_step = [[],[],[], []]
-    tab_diff_waiting_time = [[],[],[], []]
-    tab_diff_distance_travelled = [[],[],[], []]
+    tab_diff_finish_step = [[],[],[],[]]
+    tab_diff_waiting_time = [[],[],[],[]]
+    tab_diff_distance_travelled = [[],[],[],[]]
+    tab_diff_mean_speed = [[],[],[],[]]
+    tab_diff_mean_speed_w_stop = [[],[],[],[]]
     tab_num_type_cyclists = [0, 0, 0, 0]
 
     tab_all_diff_arrival_time=[]
@@ -16,22 +18,34 @@ def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario)
                 tab_diff_finish_step[2].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_waiting_time[2].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                 tab_diff_distance_travelled[2].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_diff_mean_speed[2].append(tab_scenario[int(c.id)]["mean_speed"]-c.mean_speed)
+                tab_diff_mean_speed_w_stop[2].append(tab_scenario[int(c.id)]["mean_speed_w_stop"]-c.mean_speed_w_stop)
+
                 tab_num_type_cyclists[2]+=1
             elif(c.struct_crossed):
                 if(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
                     tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                     tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                     tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                    tab_diff_mean_speed[1].append(tab_scenario[int(c.id)]["mean_speed"]-c.mean_speed)
+                    tab_diff_mean_speed_w_stop[1].append(tab_scenario[int(c.id)]["mean_speed_w_stop"]-c.mean_speed_w_stop)
+
                     tab_num_type_cyclists[1]+=1
                 elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
                     tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                     tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                     tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                    tab_diff_mean_speed[0].append(tab_scenario[int(c.id)]["mean_speed"]-c.mean_speed)
+                    tab_diff_mean_speed_w_stop[0].append(tab_scenario[int(c.id)]["mean_speed_w_stop"]-c.mean_speed_w_stop)
+
                     tab_num_type_cyclists[0]+=1
             else:
                 tab_diff_finish_step[3].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
                 tab_diff_waiting_time[3].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
                 tab_diff_distance_travelled[3].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_diff_mean_speed[3].append(tab_scenario[int(c.id)]["mean_speed"]-c.mean_speed)
+                tab_diff_mean_speed_w_stop[3].append(tab_scenario[int(c.id)]["mean_speed_w_stop"]-c.mean_speed_w_stop)
+
                 tab_num_type_cyclists[3]+=1
 
                     
@@ -60,7 +74,8 @@ def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario)
                 tab_mean_diff_distance_travelled.append(sum(tab_diff_distance_travelled[i])/len(tab_diff_distance_travelled[i]))'''
 
         
-    return tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists
+    return tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists,\
+    tab_diff_mean_speed, tab_diff_mean_speed_w_stop
 
 
 

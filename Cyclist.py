@@ -77,18 +77,25 @@ class Cyclist:
 
         self.path_used = []
 
+        self.tab_speed = []
+        self.tab_speed_w_stop = []
 
 
 
 
-    def step(self, step, tab_scenario, new_scenario):
+
+    def step(self, step):
 
         if(self.id in self.module_traci.vehicle.getIDList()):
             self.actual_edge_id = self.module_traci.vehicle.getRoadID(self.id)
             if(len(self.path_used) == 0 or self.path_used[-1] != self.actual_edge_id):
                 self.path_used.append(self.actual_edge_id)
-            if(self.module_traci.vehicle.getSpeed(self.id)<0.5):
+            speed = self.module_traci.vehicle.getSpeed(self.id)
+            self.tab_speed_w_stop.append(speed)
+            if(speed<0.5):
                 self.waiting_time += 1
+            else:
+                self.tab_speed.append(speed)
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
 
             if(self.actual_edge_id==self.original_path["path"][-1]):
@@ -134,14 +141,13 @@ class Cyclist:
         elif(self.id in self.module_traci.simulation.getArrivedIDList()):
             self.alive = False
             self.finish_step=step
+            self.mean_speed = sum(self.tab_speed)/len(self.tab_speed)
+            self.mean_speed_w_stop = sum(self.tab_speed_w_stop)/len(self.tab_speed_w_stop)
             if(self.id in self.structure.id_cyclists_crossing_struct):
                 self.structure.id_cyclists_crossing_struct.remove(self.id)
             if(self.id in self.structure.id_cyclists_waiting):
                 self.structure.id_cyclists_waiting.remove(self.id)
-            if(new_scenario):
-                tab_scenario[int(self.id)]["finish_step"]=step
-                tab_scenario[int(self.id)]["distance_travelled"]=self.distance_travelled
-                tab_scenario[int(self.id)]["waiting_time"]=self.waiting_time
+
 
 
     def calculate_ETA(self, step, path=None):
